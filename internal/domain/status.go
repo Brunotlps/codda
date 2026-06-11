@@ -45,8 +45,8 @@ func (s OrderStatus) CanTransitionTo(target OrderStatus) bool {
 	}
 }
 
-// AllValidStatus returns every valid order status, in lifecycle order. It is handy
-// for table-driven tests that need to exercise each possible status.
+// AllValidStatus returns every valid order status, in lifecycle order.
+// Useful for input validation, API documentation, and exhaustive testing.
 func AllValidStatus() []OrderStatus {
 	return []OrderStatus{
 		StatusPending,

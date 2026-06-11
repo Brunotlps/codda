@@ -2,8 +2,12 @@ package domain
 
 import "errors"
 
-// Sentinel errors describing violations of OrderItem and Order domain invariants.
+// Sentinel errors describing violations of Money, OrderItem, and Order domain invariants.
 var (
+	// ErrNegativeMoney is returned when a Money value is constructed with a
+	// negative amount of cents.
+	ErrNegativeMoney = errors.New("money amount must not be negative")
+
 	// ErrEmptyProductID is returned when an order item's product ID is empty.
 	ErrEmptyProductID = errors.New("product id must not be empty")
 

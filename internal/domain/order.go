@@ -42,6 +42,36 @@ func NewOrder(items []OrderItem) (*Order, error) {
 	}, nil
 }
 
+// HydrateOrder reconstructs an existing Order from persisted data. It is
+// intended for repositories rebuilding aggregates from storage, not for
+// creating new orders — use NewOrder for that. Unlike NewOrder, it does not
+// generate an ID, assign the current time, or merge items by product ID; it
+// trusts items to already be the result of that merge, as persisted.
+// HydrateOrder returns ErrEmptyOrderID if id is empty, ErrOrderRequiresItems
+// if items is empty, or ErrInvalidStatus if status is not a known
+// OrderStatus.
+func HydrateOrder(id OrderID, items []OrderItem, status OrderStatus, createdAt time.Time) (*Order, error) {
+	if id == "" {
+		return nil, ErrEmptyOrderID
+	}
+	if len(items) == 0 {
+		return nil, ErrOrderRequiresItems
+	}
+	if !status.IsValid() {
+		return nil, ErrInvalidStatus
+	}
+
+	hydrated := make([]OrderItem, len(items))
+	copy(hydrated, items)
+
+	return &Order{
+		id:        id,
+		items:     hydrated,
+		status:    status,
+		createdAt: createdAt,
+	}, nil
+}
+
 // mergeItems combines items that share the same product ID into a single
 // OrderItem with their quantities summed, preserving the order in which
 // each product ID first appears. The returned slice does not alias items.

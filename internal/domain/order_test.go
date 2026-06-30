@@ -142,6 +142,94 @@ func TestNewOrder(t *testing.T) {
 	})
 }
 
+func TestHydrateOrder(t *testing.T) {
+	createdAt := time.Date(2024, time.January, 10, 12, 0, 0, 0, time.UTC)
+
+	t.Run("hydrates successfully", func(t *testing.T) {
+		items := []domain.OrderItem{makeItem(t, "p1", "Widget", 1000, 2)}
+
+		order, err := domain.HydrateOrder("order-1", items, domain.StatusPaid, createdAt)
+		if err != nil {
+			t.Fatalf("HydrateOrder(...) returned unexpected error: %v", err)
+		}
+		if order.ID() != domain.OrderID("order-1") {
+			t.Errorf("ID() = %v, want %v", order.ID(), domain.OrderID("order-1"))
+		}
+		if order.Status() != domain.StatusPaid {
+			t.Errorf("Status() = %v, want %v", order.Status(), domain.StatusPaid)
+		}
+		if !order.CreatedAt().Equal(createdAt) {
+			t.Errorf("CreatedAt() = %v, want %v", order.CreatedAt(), createdAt)
+		}
+		if got := order.Items(); len(got) != 1 || got[0].ProductID() != "p1" {
+			t.Errorf("Items() = %v, want a single item with product id %q", got, "p1")
+		}
+	})
+
+	t.Run("does not merge duplicate product ids", func(t *testing.T) {
+		items := []domain.OrderItem{
+			makeItem(t, "p1", "Widget", 1000, 2),
+			makeItem(t, "p1", "Widget", 1000, 3),
+		}
+
+		order, err := domain.HydrateOrder("order-1", items, domain.StatusPending, createdAt)
+		if err != nil {
+			t.Fatalf("HydrateOrder(...) returned unexpected error: %v", err)
+		}
+		if got := order.Items(); len(got) != 2 {
+			t.Errorf("Items() returned %d items, want 2 (HydrateOrder must not merge)", len(got))
+		}
+	})
+
+	t.Run("returns defensive copy of items", func(t *testing.T) {
+		items := []domain.OrderItem{makeItem(t, "p1", "Widget", 1000, 2)}
+
+		order, err := domain.HydrateOrder("order-1", items, domain.StatusPending, createdAt)
+		if err != nil {
+			t.Fatalf("HydrateOrder(...) returned unexpected error: %v", err)
+		}
+
+		items[0] = domain.OrderItem{}
+		if got := order.Items(); got[0] == (domain.OrderItem{}) {
+			t.Errorf("HydrateOrder aliased the input items slice")
+		}
+	})
+
+	t.Run("empty id returns error", func(t *testing.T) {
+		items := []domain.OrderItem{makeItem(t, "p1", "Widget", 1000, 1)}
+
+		order, err := domain.HydrateOrder("", items, domain.StatusPending, createdAt)
+		if !errors.Is(err, domain.ErrEmptyOrderID) {
+			t.Errorf("HydrateOrder(...) error = %v, want %v", err, domain.ErrEmptyOrderID)
+		}
+		if order != nil {
+			t.Errorf("HydrateOrder(...) = %v, want nil", order)
+		}
+	})
+
+	t.Run("empty items returns error", func(t *testing.T) {
+		order, err := domain.HydrateOrder("order-1", nil, domain.StatusPending, createdAt)
+		if !errors.Is(err, domain.ErrOrderRequiresItems) {
+			t.Errorf("HydrateOrder(...) error = %v, want %v", err, domain.ErrOrderRequiresItems)
+		}
+		if order != nil {
+			t.Errorf("HydrateOrder(...) = %v, want nil", order)
+		}
+	})
+
+	t.Run("invalid status returns error", func(t *testing.T) {
+		items := []domain.OrderItem{makeItem(t, "p1", "Widget", 1000, 1)}
+
+		order, err := domain.HydrateOrder("order-1", items, domain.OrderStatus("bogus"), createdAt)
+		if !errors.Is(err, domain.ErrInvalidStatus) {
+			t.Errorf("HydrateOrder(...) error = %v, want %v", err, domain.ErrInvalidStatus)
+		}
+		if order != nil {
+			t.Errorf("HydrateOrder(...) = %v, want nil", order)
+		}
+	})
+}
+
 func TestOrder_ItemsReturnsDefensiveCopy(t *testing.T) {
 	order := makeOrder(t)
 

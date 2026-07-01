@@ -7,6 +7,9 @@
 bin/
 dist/
 
+# Compiled binaries from cmd/
+/orderservice
+
 # Test binaries and coverage
 *.test
 *.out

@@ -1,28 +1,87 @@
-# Codda — Order Service
+# Codda
 
-A simplified order management API, built in Go following a hexagonal architecture.
+Order Service API built with hexagonal architecture in Go.
 
-## Status
+## About
 
-Under development
+Codda is a learning project focused on backend fundamentals:
+hexagonal architecture (ports and adapters), domain-driven design,
+Go idioms, and integration with PostgreSQL. It exposes a simple
+HTTP API for managing customer orders through a lifecycle
+(pending → paid → shipped, or cancelled).
 
-## Stack
+## Project Structure
 
-- **Language:** Go 1.26+
-- **HTTP Router:**
-- **Database:**
-- **Integration testing:** testcontainers-go
+```
+cmd/orderservice/    Composition root
+internal/
+  domain/            Business rules, invariants, aggregates
+  application/       Use cases + ports
+  adapters/
+    http/            HTTP entrypoint (chi)
+    postgres/        PostgreSQL persistence (pgx)
+    memory/          In-memory repo (for tests)
+  config/            Environment configuration
+```
 
-## Architecture
+## Requirements
 
-The project is organized around a hexagonal architecture (Ports and Adapters):
+- Go 1.26 or later
+- Docker + Docker Compose
 
-- `internal/domain/` — entities, value objects, and invariants (pure core).
-- `internal/application/` — use cases and output ports.
-- `internal/adapters/` — concrete implementations (HTTP, PostgreSQL, in-memory).
-- `internal/config/` — configuration loading and validation.
-- `cmd/orderservice/` — composition root.
+## Running
 
-## Getting Started
+Start PostgreSQL:
+
+    docker compose up -d
+
+Set the database URL and run the service:
+
+    export DATABASE_URL="postgres://codda:codda@localhost:5433/codda?sslmode=disable"
+    go run ./cmd/orderservice/
+
+The service starts on port 8080 (configurable via `HTTP_PORT`). Database
+migrations are applied automatically on startup.
 
 ## Testing
+
+Unit tests (no external dependencies):
+
+    go test ./internal/domain/... ./internal/application/...
+
+Full test suite (requires Docker for integration tests):
+
+    go test ./...
+
+## API
+
+Create an order:
+
+    curl -X POST http://localhost:8080/orders \
+      -H "Content-Type: application/json" \
+      -d '{
+        "items": [
+          {"product_id": "p1", "product_name": "Widget", "price_cents": 1999, "quantity": 2}
+        ]
+      }'
+
+Get an order:
+
+    curl http://localhost:8080/orders/{id}
+
+List orders:
+
+    curl "http://localhost:8080/orders?limit=10&status=paid"
+
+Transition an order:
+
+    curl -X POST http://localhost:8080/orders/{id}/pay
+    curl -X POST http://localhost:8080/orders/{id}/cancel
+    curl -X POST http://localhost:8080/orders/{id}/ship
+
+## Configuration
+
+| Variable       | Required | Default | Description                               |
+| -------------- | -------- | ------- | ----------------------------------------- |
+| `DATABASE_URL` | Yes      | -       | PostgreSQL connection string              |
+| `HTTP_PORT`    | No       | 8080    | Port the HTTP server listens on (1-65535) |

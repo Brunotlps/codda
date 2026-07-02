@@ -14,11 +14,18 @@ const defaultHTTPPort = "8080"
 // outside the valid TCP port range.
 var ErrInvalidPort = errors.New("HTTP_PORT must be between 1 and 65535")
 
+// ErrMissingDatabaseURL is returned by Load when DATABASE_URL is unset.
+var ErrMissingDatabaseURL = errors.New("DATABASE_URL is required")
+
 // Config holds the application's runtime configuration, populated from
 // environment variables.
 type Config struct {
 	// HTTPAddr is the address the HTTP server listens on (e.g. ":8080").
 	HTTPAddr string
+
+	// DatabaseURL is the Postgres connection string, in the format
+	// postgres://user:password@host:port/database?sslmode=disable.
+	DatabaseURL string
 }
 
 // Load reads configuration from environment variables, applying defaults
@@ -37,7 +44,13 @@ func Load() (*Config, error) {
 		return nil, ErrInvalidPort
 	}
 
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		return nil, ErrMissingDatabaseURL
+	}
+
 	return &Config{
-		HTTPAddr: ":" + port,
+		HTTPAddr:    ":" + port,
+		DatabaseURL: databaseURL,
 	}, nil
 }

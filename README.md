@@ -12,17 +12,7 @@ HTTP API for managing customer orders through a lifecycle
 
 ## Project Structure
 
-```
-cmd/orderservice/    Composition root
-internal/
-  domain/            Business rules, invariants, aggregates
-  application/       Use cases + ports
-  adapters/
-    http/            HTTP entrypoint (chi)
-    postgres/        PostgreSQL persistence (pgx)
-    memory/          In-memory repo (for tests)
-  config/            Environment configuration
-```
+<img src="docs/images/file-structure.png" alt="Project Structure" width="500" />
 
 ## Requirements
 

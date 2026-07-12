@@ -1,14 +1,15 @@
 # Codda
 
-Order Service API built with hexagonal architecture in Go.
+Codda is an Order Service API built in Go with hexagonal architecture,
+domain-driven design, and PostgreSQL persistence.
 
-## About
+The service manages customer orders through this lifecycle:
 
-Codda is a learning project focused on backend fundamentals:
-hexagonal architecture (ports and adapters), domain-driven design,
-Go idioms, and integration with PostgreSQL. It exposes a simple
-HTTP API for managing customer orders through a lifecycle
-(pending → paid → shipped, or cancelled).
+```text
+pending -> paid -> shipped
+pending -> cancelled
+paid    -> cancelled
+```
 
 ## Project Structure
 
@@ -17,61 +18,91 @@ HTTP API for managing customer orders through a lifecycle
 ## Requirements
 
 - Go 1.26 or later
-- Docker + Docker Compose
+- Docker and Docker Compose
 
-## Running
+## Running Locally
 
 Start PostgreSQL:
 
-    docker compose up -d
+```sh
+docker compose up -d
+```
 
-Set the database URL and run the service:
+Run the service:
 
-    export DATABASE_URL="postgres://codda:codda@localhost:5433/codda?sslmode=disable"
-    go run ./cmd/orderservice/
+```sh
+export DATABASE_URL="postgres://codda:codda@localhost:5433/codda?sslmode=disable"
+go run ./cmd/orderservice/
+```
 
-The service starts on port 8080 (configurable via `HTTP_PORT`). Database
-migrations are applied automatically on startup.
+The HTTP server listens on `:8080` by default. Set `HTTP_PORT` to override it.
+Database migrations are applied automatically on startup.
 
 ## Testing
 
-Unit tests (no external dependencies):
+Run fast tests without external infrastructure:
 
-    go test ./internal/domain/... ./internal/application/...
+```sh
+go test ./internal/domain/... ./internal/application/... ./internal/adapters/memory/... ./internal/adapters/http/... ./internal/config/...
+```
 
-Full test suite (requires Docker for integration tests):
+Run the full suite, including PostgreSQL integration tests with Testcontainers:
 
-    go test ./...
+```sh
+go test ./...
+```
 
-## API
+Run the local smoke harness:
+
+```sh
+tools/harness/smoke.sh
+```
+
+## API Quick Start
 
 Create an order:
 
-    curl -X POST http://localhost:8080/orders \
-      -H "Content-Type: application/json" \
-      -d '{
-        "items": [
-          {"product_id": "p1", "product_name": "Widget", "price_cents": 1999, "quantity": 2}
-        ]
-      }'
+```sh
+curl -X POST http://localhost:8080/orders \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      {"product_id": "p1", "product_name": "Widget", "price_cents": 1999, "quantity": 2}
+    ]
+  }'
+```
 
 Get an order:
 
-    curl http://localhost:8080/orders/{id}
+```sh
+curl http://localhost:8080/orders/{id}
+```
 
 List orders:
 
-    curl "http://localhost:8080/orders?limit=10&status=paid"
+```sh
+curl "http://localhost:8080/orders?limit=10&status=paid"
+```
 
 Transition an order:
 
-    curl -X POST http://localhost:8080/orders/{id}/pay
-    curl -X POST http://localhost:8080/orders/{id}/cancel
-    curl -X POST http://localhost:8080/orders/{id}/ship
+```sh
+curl -X POST http://localhost:8080/orders/{id}/pay
+curl -X POST http://localhost:8080/orders/{id}/cancel
+curl -X POST http://localhost:8080/orders/{id}/ship
+```
 
-## Configuration
+## Official Documentation
 
-| Variable       | Required | Default | Description                               |
-| -------------- | -------- | ------- | ----------------------------------------- |
-| `DATABASE_URL` | Yes      | -       | PostgreSQL connection string              |
-| `HTTP_PORT`    | No       | 8080    | Port the HTTP server listens on (1-65535) |
+- [Architecture](docs/architecture.md)
+- [Domain Model](docs/domain.md)
+- [Application Layer](docs/application.md)
+- [HTTP API](docs/http-api.md)
+- [Persistence](docs/persistence.md)
+- [Configuration](docs/configuration.md)
+- [Testing](docs/testing.md)
+- [Operations](docs/operations.md)
+- [Backlog](docs/backlog.md)
+- [AI-Assisted Development](docs/ai-assisted-development.md)
+
+Architecture decision records live in [docs/adr](docs/adr/).

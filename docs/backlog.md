@@ -26,7 +26,7 @@ GitHub issue: [#2](https://github.com/Brunotlps/codda/issues/2)
 `config.Load` has no test coverage, even though it validates startup-critical
 environment variables.
 
-Status: implemented in branch `fix-config-coverage`; pending review/merge.
+Status: addressed by PR [#11](https://github.com/Brunotlps/codda/pull/11).
 
 Acceptance criteria:
 

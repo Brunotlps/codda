@@ -26,6 +26,8 @@ GitHub issue: [#2](https://github.com/Brunotlps/codda/issues/2)
 `config.Load` has no test coverage, even though it validates startup-critical
 environment variables.
 
+Status: implemented in branch `fix-config-coverage`; pending review/merge.
+
 Acceptance criteria:
 
 - Test default `HTTP_PORT`.

@@ -30,8 +30,16 @@ with `:`.
 `DATABASE_URL` is not parsed by the config package. The PostgreSQL driver and
 migration library validate it when they connect.
 
+## Test Coverage
+
+`internal/config` has focused unit coverage for:
+
+- defaulting `HTTP_PORT` to `8080`;
+- accepting boundary ports `1` and `65535`;
+- rejecting non-numeric, zero, and out-of-range ports;
+- rejecting a missing `DATABASE_URL`.
+
 ## Current Gaps
 
-- `internal/config` has no test file.
 - Pool sizing and timeout configuration are not exposed through config.
 - `DATABASE_URL` has no early format validation.

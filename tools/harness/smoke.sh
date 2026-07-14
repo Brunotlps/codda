@@ -24,15 +24,15 @@ require_command() {
   fi
 }
 
-wait_for_health() {
+wait_for_ready() {
   for _ in $(seq 1 40); do
-    if curl -fsS "${BASE_URL}/health" >/dev/null 2>&1; then
+    if curl -fsS "${BASE_URL}/ready" >/dev/null 2>&1; then
       return 0
     fi
     sleep 0.25
   done
 
-  echo "service did not become healthy at ${BASE_URL}/health" >&2
+  echo "service did not become ready at ${BASE_URL}/ready" >&2
   echo "service log: ${LOG_FILE}" >&2
   exit 1
 }
@@ -55,7 +55,10 @@ echo "starting orderservice on :${HTTP_PORT}"
 DATABASE_URL="${DATABASE_URL}" HTTP_PORT="${HTTP_PORT}" go run ./cmd/orderservice/ >"${LOG_FILE}" 2>&1 &
 SERVICE_PID="$!"
 
-wait_for_health
+wait_for_ready
+
+echo "checking liveness"
+curl -fsS "${BASE_URL}/health" >/dev/null
 
 echo "creating order"
 CREATE_RESPONSE="$(

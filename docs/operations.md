@@ -16,7 +16,8 @@ go run ./cmd/orderservice/
 ```
 
 The service logs database connection, migration progress, server startup, and
-shutdown.
+shutdown. Startup failures from `server.Start` are logged separately from
+signal-triggered graceful shutdown and return a non-zero process exit.
 
 ## Database Lifecycle
 
@@ -57,5 +58,5 @@ tools/harness/smoke.sh
 ```
 
 The script starts PostgreSQL with Docker Compose, starts the service, waits for
-`/health`, creates an order, reads it, pays it, ships it, lists orders, and
-then stops the service process it started.
+`/ready`, checks `/health`, creates an order, reads it, pays it, ships it,
+lists orders, and then stops the service process it started.

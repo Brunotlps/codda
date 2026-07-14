@@ -82,11 +82,6 @@ a known performance trade-off.
 
 `cmd/orderservice` applies migrations during startup with `golang-migrate`.
 
-The migration source path is currently relative:
-
-```text
-file://internal/adapters/postgres/migrations
-```
-
-The process must run from the repository root or another working directory
-where that relative path resolves correctly.
+Migration files are embedded in the binary from
+`internal/adapters/postgres/migrations` and loaded through the `iofs` source
+driver. Startup migrations do not depend on the process working directory.

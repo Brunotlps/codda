@@ -39,13 +39,14 @@ The process listens for `SIGINT` and `SIGTERM`. On shutdown it:
 
 ## Healthcheck
 
-`GET /health` returns static `200 OK`. It does not currently check database
-readiness.
+`GET /health` returns static `200 OK` when the process is alive. It is a
+liveness endpoint and does not check database readiness.
 
-For production-like deployments, split health into:
+`GET /ready` checks required dependencies. In production wiring it pings the
+PostgreSQL pool and returns:
 
-- liveness: process is alive;
-- readiness: dependencies such as PostgreSQL are reachable.
+- `200 OK` when PostgreSQL is reachable;
+- `503 service_unavailable` when PostgreSQL cannot be pinged.
 
 ## Local Smoke Harness
 

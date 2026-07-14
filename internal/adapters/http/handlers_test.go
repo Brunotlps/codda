@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -20,6 +21,14 @@ import (
 type testEnv struct {
 	server *httptest.Server
 	repo   *memory.OrderRepository
+}
+
+type fakeReadinessChecker struct {
+	err error
+}
+
+func (c fakeReadinessChecker) Ping(ctx context.Context) error {
+	return c.err
 }
 
 // setupTestServer wires a full Handler/Router stack backed by a fresh
@@ -39,6 +48,27 @@ func setupTestServer(t *testing.T) *testEnv {
 
 	handler := coddaHTTP.NewHandler(createOrder, findOrder, listOrders, markPaid, markCancelled, markShipped)
 	router := coddaHTTP.NewRouter(handler)
+	server := httptest.NewServer(router)
+
+	t.Cleanup(server.Close)
+
+	return &testEnv{server: server, repo: repo}
+}
+
+func setupTestServerWithReadiness(t *testing.T, checker coddaHTTP.ReadinessChecker) *testEnv {
+	t.Helper()
+
+	repo := memory.NewOrderRepository()
+
+	createOrder := application.NewCreateOrderUseCase(repo)
+	findOrder := application.NewFindOrderByIDUseCase(repo)
+	listOrders := application.NewListOrdersUseCase(repo)
+	markPaid := application.NewMarkOrderAsPaidUseCase(repo)
+	markCancelled := application.NewMarkOrderAsCancelledUseCase(repo)
+	markShipped := application.NewMarkOrderAsShippedUseCase(repo)
+
+	handler := coddaHTTP.NewHandler(createOrder, findOrder, listOrders, markPaid, markCancelled, markShipped)
+	router := coddaHTTP.NewRouter(handler, checker)
 	server := httptest.NewServer(router)
 
 	t.Cleanup(server.Close)
@@ -113,6 +143,41 @@ func TestHealthcheck(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusOK)
 	}
+}
+
+func TestReadiness(t *testing.T) {
+	t.Run("ready", func(t *testing.T) {
+		env := setupTestServerWithReadiness(t, fakeReadinessChecker{})
+
+		resp, err := http.Get(env.server.URL + "/ready")
+		if err != nil {
+			t.Fatalf("get: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+		}
+	})
+
+	t.Run("dependency unavailable", func(t *testing.T) {
+		env := setupTestServerWithReadiness(t, fakeReadinessChecker{err: errors.New("database unavailable")})
+
+		resp, err := http.Get(env.server.URL + "/ready")
+		if err != nil {
+			t.Fatalf("get: %v", err)
+		}
+		if resp.StatusCode != http.StatusServiceUnavailable {
+			resp.Body.Close()
+			t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusServiceUnavailable)
+		}
+
+		var errResp coddaHTTP.ErrorResponse
+		decodeJSON(t, resp, &errResp)
+		if errResp.Error.Code != "service_unavailable" {
+			t.Errorf("Error.Code = %q, want %q", errResp.Error.Code, "service_unavailable")
+		}
+	})
 }
 
 func TestCreateOrder(t *testing.T) {

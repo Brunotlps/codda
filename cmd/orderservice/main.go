@@ -89,7 +89,7 @@ func main() {
 	markShipped := application.NewMarkOrderAsShippedUseCase(repo)
 
 	handler := http.NewHandler(createOrder, findOrder, listOrders, markPaid, markCancelled, markShipped)
-	router := http.NewRouter(handler)
+	router := http.NewRouter(handler, pool)
 	server := http.NewServer(cfg.HTTPAddr, router)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

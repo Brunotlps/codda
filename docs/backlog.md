@@ -87,7 +87,7 @@ GitHub issue: [#6](https://github.com/Brunotlps/codda/issues/6)
 `400 validation_error`. New domain validation errors can accidentally fall
 through to `500 internal_error`.
 
-Status: addressed by the HTTP validation contract fix.
+Status: addressed by PR [#12](https://github.com/Brunotlps/codda/pull/12).
 
 Acceptance criteria:
 

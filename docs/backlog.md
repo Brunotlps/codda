@@ -13,6 +13,8 @@ GitHub issue: [#1](https://github.com/Brunotlps/codda/issues/1)
 PostgreSQL, the API should expose readiness that fails when the database is not
 reachable.
 
+Status: addressed by PR [#14](https://github.com/Brunotlps/codda/pull/14).
+
 Acceptance criteria:
 
 - Add a readiness endpoint or enhance `/health` with dependency checks.

@@ -14,8 +14,15 @@ http://localhost:8080
 GET /health
 ```
 
-Returns `200 OK`. This is currently a static liveness endpoint and does not
-check PostgreSQL readiness.
+Returns `200 OK` when the process is alive. This endpoint is intentionally a
+static liveness check and does not verify dependencies.
+
+```http
+GET /ready
+```
+
+Returns `200 OK` when the service can reach required dependencies. If
+PostgreSQL cannot be pinged, it returns `503 service_unavailable`.
 
 ## Create Order
 

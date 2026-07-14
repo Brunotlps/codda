@@ -119,7 +119,7 @@ GitHub issue: [#8](https://github.com/Brunotlps/codda/issues/8)
 
 Large prices or quantities can overflow when calculating totals.
 
-Status: addressed by the domain integrity fix.
+Status: addressed by PR [#15](https://github.com/Brunotlps/codda/pull/15).
 
 Acceptance criteria:
 
@@ -134,7 +134,7 @@ GitHub issue: [#9](https://github.com/Brunotlps/codda/issues/9)
 Duplicate product validation exists as a sentinel error but is not enforced in
 hydration or row mapping.
 
-Status: addressed by the domain integrity fix.
+Status: addressed by PR [#15](https://github.com/Brunotlps/codda/pull/15).
 
 Acceptance criteria:
 

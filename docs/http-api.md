@@ -80,9 +80,12 @@ GET /orders?limit=10&offset=0&status=paid
 
 Supported query parameters:
 
-- `status`
-- `limit`
-- `offset`
+- `status`: optional; one of `pending`, `paid`, `shipped`, or `cancelled`
+- `limit`: optional integer; defaults and maximums are applied by the application layer
+- `offset`: optional integer; negative values are clamped to `0` by the application layer
+
+Unknown `status` values and non-integer `limit` or `offset` values return
+`400 validation_error`.
 
 Response `200 OK`:
 

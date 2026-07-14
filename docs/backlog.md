@@ -73,6 +73,8 @@ GitHub issue: [#5](https://github.com/Brunotlps/codda/issues/5)
 Invalid values such as `status=bogus`, `limit=abc`, or `offset=abc` do not
 return `400`. They are treated as empty/default filters.
 
+Status: addressed by PR [#13](https://github.com/Brunotlps/codda/pull/13).
+
 Acceptance criteria:
 
 - Decide whether invalid query parameters should be rejected.

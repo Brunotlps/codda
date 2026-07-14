@@ -233,28 +233,62 @@ func TestFindOrderByID(t *testing.T) {
 }
 
 func TestListOrders(t *testing.T) {
-	env := setupTestServer(t)
-	seedOrder(t, env.repo)
-	seedOrder(t, env.repo)
+	t.Run("success", func(t *testing.T) {
+		env := setupTestServer(t)
+		seedOrder(t, env.repo)
+		seedOrder(t, env.repo)
 
-	resp, err := http.Get(env.server.URL + "/orders")
-	if err != nil {
-		t.Fatalf("get: %v", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusOK)
-	}
+		resp, err := http.Get(env.server.URL + "/orders")
+		if err != nil {
+			t.Fatalf("get: %v", err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+		}
 
-	var got coddaHTTP.ListOrdersResponse
-	decodeJSON(t, resp, &got)
+		var got coddaHTTP.ListOrdersResponse
+		decodeJSON(t, resp, &got)
 
-	if len(got.Orders) != 2 {
-		t.Errorf("Orders = %v, want 2 items", got.Orders)
-	}
-	if got.HasMore {
-		t.Errorf("HasMore = true, want false")
-	}
+		if len(got.Orders) != 2 {
+			t.Errorf("Orders = %v, want 2 items", got.Orders)
+		}
+		if got.HasMore {
+			t.Errorf("HasMore = true, want false")
+		}
+	})
+
+	t.Run("invalid query parameters", func(t *testing.T) {
+		tests := []struct {
+			name  string
+			query string
+		}{
+			{name: "unknown status", query: "status=bogus"},
+			{name: "non numeric limit", query: "limit=abc"},
+			{name: "non numeric offset", query: "offset=abc"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				env := setupTestServer(t)
+
+				resp, err := http.Get(env.server.URL + "/orders?" + tt.query)
+				if err != nil {
+					t.Fatalf("get: %v", err)
+				}
+				if resp.StatusCode != http.StatusBadRequest {
+					resp.Body.Close()
+					t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
+				}
+
+				var errResp coddaHTTP.ErrorResponse
+				decodeJSON(t, resp, &errResp)
+				if errResp.Error.Code != "validation_error" {
+					t.Errorf("Error.Code = %q, want %q", errResp.Error.Code, "validation_error")
+				}
+			})
+		}
+	})
 }
 
 func TestMarkOrderAsPaid(t *testing.T) {

@@ -133,5 +133,8 @@ Stable error codes:
 | `service_unavailable` | 503 | Request deadline exceeded |
 | `internal_error` | 500 | Unhandled server error |
 
+Domain validation errors are classified in the domain package and mapped
+consistently to `400 validation_error` by the HTTP adapter.
+
 If the request context is canceled, the adapter writes no response because the
 client is assumed to have disconnected.

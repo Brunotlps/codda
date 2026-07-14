@@ -44,3 +44,38 @@ var (
 	// and validation paths that do not go through item-merging logic.
 	ErrDuplicateProductInOrder = errors.New("order contains duplicate product id")
 )
+
+var validationErrors = []error{
+	ErrNegativeMoney,
+	ErrEmptyProductID,
+	ErrEmptyProductName,
+	ErrProductNameTooLong,
+	ErrInvalidQuantity,
+	ErrInvalidPrice,
+	ErrEmptyOrderID,
+	ErrOrderRequiresItems,
+	ErrInvalidStatus,
+	ErrDuplicateProductInOrder,
+}
+
+// IsValidationError reports whether err is or wraps one of the domain
+// sentinel errors that represent invalid input or invalid persisted state.
+func IsValidationError(err error) bool {
+	for _, validationErr := range validationErrors {
+		if errors.Is(err, validationErr) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// ValidationErrors returns the domain sentinel errors classified as
+// validation failures. The returned slice is a copy and can be safely mutated
+// by callers.
+func ValidationErrors() []error {
+	errs := make([]error, len(validationErrors))
+	copy(errs, validationErrors)
+
+	return errs
+}

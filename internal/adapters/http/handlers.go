@@ -221,13 +221,7 @@ func httpStatusForError(err error) (int, string, string) {
 		return http.StatusNotFound, "order_not_found", "order not found"
 	case errors.Is(err, domain.ErrInvalidStatusTransition):
 		return http.StatusConflict, "invalid_status_transition", "order cannot transition to this status"
-	case errors.Is(err, domain.ErrOrderRequiresItems),
-		errors.Is(err, domain.ErrEmptyProductID),
-		errors.Is(err, domain.ErrEmptyProductName),
-		errors.Is(err, domain.ErrProductNameTooLong),
-		errors.Is(err, domain.ErrInvalidPrice),
-		errors.Is(err, domain.ErrInvalidQuantity),
-		errors.Is(err, domain.ErrNegativeMoney),
+	case domain.IsValidationError(err),
 		errors.Is(err, errDecodeRequest),
 		errors.Is(err, errMissingOrderID):
 		return http.StatusBadRequest, "validation_error", err.Error()

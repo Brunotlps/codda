@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -19,6 +20,10 @@ var errDecodeRequest = errors.New("invalid request body")
 // errMissingOrderID is returned when a request is missing the order ID URL
 // parameter.
 var errMissingOrderID = errors.New("order id is required")
+
+// errInvalidQueryParameter is returned when a query parameter cannot be
+// interpreted according to the endpoint contract.
+var errInvalidQueryParameter = errors.New("invalid query parameter")
 
 // maxBodyBytes is the maximum size accepted for a request body, guarding
 // against unbounded memory growth from oversized or malicious payloads.
@@ -103,24 +108,10 @@ func (h *Handler) FindOrderByID(w http.ResponseWriter, r *http.Request) {
 
 // ListOrders handles GET /orders.
 func (h *Handler) ListOrders(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query()
-
-	var filters application.ListOrdersFilters
-	if statusStr := q.Get("status"); statusStr != "" {
-		status := domain.OrderStatus(statusStr)
-		filters.Status = &status
-	}
-
-	var pagination application.Pagination
-	if limitStr := q.Get("limit"); limitStr != "" {
-		if limit, err := strconv.Atoi(limitStr); err == nil {
-			pagination.Limit = limit
-		}
-	}
-	if offsetStr := q.Get("offset"); offsetStr != "" {
-		if offset, err := strconv.Atoi(offsetStr); err == nil {
-			pagination.Offset = offset
-		}
+	filters, pagination, err := parseListOrdersQuery(r)
+	if err != nil {
+		writeError(w, err)
+		return
 	}
 
 	resumes, hasMore, err := h.listOrders.Execute(r.Context(), filters, pagination)
@@ -138,6 +129,37 @@ func (h *Handler) ListOrders(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, resp)
+}
+
+func parseListOrdersQuery(r *http.Request) (application.ListOrdersFilters, application.Pagination, error) {
+	q := r.URL.Query()
+
+	var filters application.ListOrdersFilters
+	if statusStr := q.Get("status"); statusStr != "" {
+		status := domain.OrderStatus(statusStr)
+		if !status.IsValid() {
+			return application.ListOrdersFilters{}, application.Pagination{}, fmt.Errorf("%w: status must be one of pending, paid, shipped, or cancelled", errInvalidQueryParameter)
+		}
+		filters.Status = &status
+	}
+
+	var pagination application.Pagination
+	if limitStr := q.Get("limit"); limitStr != "" {
+		limit, err := strconv.Atoi(limitStr)
+		if err != nil {
+			return application.ListOrdersFilters{}, application.Pagination{}, fmt.Errorf("%w: limit must be an integer", errInvalidQueryParameter)
+		}
+		pagination.Limit = limit
+	}
+	if offsetStr := q.Get("offset"); offsetStr != "" {
+		offset, err := strconv.Atoi(offsetStr)
+		if err != nil {
+			return application.ListOrdersFilters{}, application.Pagination{}, fmt.Errorf("%w: offset must be an integer", errInvalidQueryParameter)
+		}
+		pagination.Offset = offset
+	}
+
+	return filters, pagination, nil
 }
 
 // MarkOrderAsPaid handles POST /orders/{id}/pay.
@@ -223,7 +245,8 @@ func httpStatusForError(err error) (int, string, string) {
 		return http.StatusConflict, "invalid_status_transition", "order cannot transition to this status"
 	case domain.IsValidationError(err),
 		errors.Is(err, errDecodeRequest),
-		errors.Is(err, errMissingOrderID):
+		errors.Is(err, errMissingOrderID),
+		errors.Is(err, errInvalidQueryParameter):
 		return http.StatusBadRequest, "validation_error", err.Error()
 	case errors.Is(err, context.DeadlineExceeded):
 		return http.StatusServiceUnavailable, "service_unavailable", "request could not be completed in time"

@@ -197,12 +197,12 @@ func TestOrderRepository_List(t *testing.T) {
 			}
 		}
 
-		orders, hasMore, err := repo.List(ctx, application.ListOrdersFilters{}, application.Pagination{Limit: 10})
+		resumes, hasMore, err := repo.ListResumes(ctx, application.ListOrdersFilters{}, application.Pagination{Limit: 10})
 		if err != nil {
-			t.Fatalf("List: %v", err)
+			t.Fatalf("ListResumes: %v", err)
 		}
-		if got := len(orders); got != 3 {
-			t.Errorf("len(orders) = %d, want 3", got)
+		if got := len(resumes); got != 3 {
+			t.Errorf("len(resumes) = %d, want 3", got)
 		}
 		if hasMore {
 			t.Errorf("hasMore = true, want false")
@@ -228,18 +228,18 @@ func TestOrderRepository_List(t *testing.T) {
 			}
 		}
 
-		orders, _, err := repo.List(ctx, application.ListOrdersFilters{}, application.Pagination{Limit: 10})
+		resumes, _, err := repo.ListResumes(ctx, application.ListOrdersFilters{}, application.Pagination{Limit: 10})
 		if err != nil {
-			t.Fatalf("List: %v", err)
+			t.Fatalf("ListResumes: %v", err)
 		}
-		if got := len(orders); got != 3 {
-			t.Fatalf("len(orders) = %d, want 3", got)
+		if got := len(resumes); got != 3 {
+			t.Fatalf("len(resumes) = %d, want 3", got)
 		}
 
 		wantIDs := []domain.OrderID{newest.ID(), middle.ID(), oldest.ID()}
 		for i, want := range wantIDs {
-			if got := orders[i].ID(); got != want {
-				t.Errorf("orders[%d].ID() = %q, want %q", i, got, want)
+			if got := resumes[i].ID; got != want {
+				t.Errorf("resumes[%d].ID = %q, want %q", i, got, want)
 			}
 		}
 	})
@@ -262,15 +262,15 @@ func TestOrderRepository_List(t *testing.T) {
 		}
 
 		status := domain.StatusPaid
-		orders, _, err := repo.List(ctx, application.ListOrdersFilters{Status: &status}, application.Pagination{Limit: 10})
+		resumes, _, err := repo.ListResumes(ctx, application.ListOrdersFilters{Status: &status}, application.Pagination{Limit: 10})
 		if err != nil {
-			t.Fatalf("List: %v", err)
+			t.Fatalf("ListResumes: %v", err)
 		}
-		if got := len(orders); got != 1 {
-			t.Fatalf("len(orders) = %d, want 1", got)
+		if got := len(resumes); got != 1 {
+			t.Fatalf("len(resumes) = %d, want 1", got)
 		}
-		if got := orders[0].ID(); got != paid.ID() {
-			t.Errorf("orders[0].ID() = %q, want %q", got, paid.ID())
+		if got := resumes[0].ID; got != paid.ID() {
+			t.Errorf("resumes[0].ID = %q, want %q", got, paid.ID())
 		}
 	})
 
@@ -289,15 +289,18 @@ func TestOrderRepository_List(t *testing.T) {
 		}
 
 		minPrice, _ := domain.NewMoney(1000)
-		orders, _, err := repo.List(ctx, application.ListOrdersFilters{PriceMin: &minPrice}, application.Pagination{Limit: 10})
+		resumes, _, err := repo.ListResumes(ctx, application.ListOrdersFilters{PriceMin: &minPrice}, application.Pagination{Limit: 10})
 		if err != nil {
-			t.Fatalf("List: %v", err)
+			t.Fatalf("ListResumes: %v", err)
 		}
-		if got := len(orders); got != 1 {
-			t.Fatalf("len(orders) = %d, want 1", got)
+		if got := len(resumes); got != 1 {
+			t.Fatalf("len(resumes) = %d, want 1", got)
 		}
-		if got := orders[0].ID(); got != expensive.ID() {
-			t.Errorf("orders[0].ID() = %q, want %q", got, expensive.ID())
+		if got := resumes[0].ID; got != expensive.ID() {
+			t.Errorf("resumes[0].ID = %q, want %q", got, expensive.ID())
+		}
+		if got := resumes[0].Total.Cents(); got != expensive.Total().Cents() {
+			t.Errorf("resumes[0].Total = %d cents, want %d", got, expensive.Total().Cents())
 		}
 	})
 
@@ -312,12 +315,12 @@ func TestOrderRepository_List(t *testing.T) {
 			}
 		}
 
-		orders, hasMore, err := repo.List(ctx, application.ListOrdersFilters{}, application.Pagination{Limit: 2})
+		resumes, hasMore, err := repo.ListResumes(ctx, application.ListOrdersFilters{}, application.Pagination{Limit: 2})
 		if err != nil {
-			t.Fatalf("List: %v", err)
+			t.Fatalf("ListResumes: %v", err)
 		}
-		if got := len(orders); got != 2 {
-			t.Errorf("len(orders) = %d, want 2", got)
+		if got := len(resumes); got != 2 {
+			t.Errorf("len(resumes) = %d, want 2", got)
 		}
 		if !hasMore {
 			t.Errorf("hasMore = false, want true")

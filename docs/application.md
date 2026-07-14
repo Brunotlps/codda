@@ -3,7 +3,7 @@
 The application package contains use cases and ports. It orchestrates work but
 does not own domain rules.
 
-## Output Port
+## Output Ports
 
 `OrderRepository` is the persistence port:
 
@@ -11,7 +11,14 @@ does not own domain rules.
 type OrderRepository interface {
     Save(ctx context.Context, order *domain.Order) error
     FindByID(ctx context.Context, id domain.OrderID) (*domain.Order, error)
-    List(ctx context.Context, filters ListOrdersFilters, pagination Pagination) ([]*domain.Order, bool, error)
+}
+```
+
+`OrderReadRepository` is the read-model port used by list views:
+
+```go
+type OrderReadRepository interface {
+    ListResumes(ctx context.Context, filters ListOrdersFilters, pagination Pagination) ([]OrderResume, bool, error)
 }
 ```
 
@@ -75,6 +82,10 @@ Filters are passed to the repository:
 - status
 - creation date range
 - price range
+
+The use case depends on `OrderReadRepository`, not the aggregate persistence
+port. Detail reads still return full `Order` aggregates through
+`FindOrderByIDUseCase`.
 
 ## Transition Use Cases
 

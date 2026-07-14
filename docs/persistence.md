@@ -57,9 +57,9 @@ The adapter decides through PostgreSQL `ON CONFLICT`.
 
 Infrastructure-specific not-found errors do not leak into use cases.
 
-## List
+## ListResumes
 
-`List` builds a dynamic query based on optional filters:
+`ListResumes` builds a dynamic query based on optional filters:
 
 - status
 - created from
@@ -67,16 +67,16 @@ Infrastructure-specific not-found errors do not leak into use cases.
 - minimum total
 - maximum total
 
-Price filters require a derived totals subquery because the domain does not
-store `total_cents` as a column.
+The query uses a derived totals subquery because the domain does not store
+`total_cents` as a column. The same total is returned in the `OrderResume`
+projection.
 
 Pagination uses `limit + 1` to detect whether another page exists without
 running a separate count query.
 
-The current port returns full `*domain.Order` values. This means the Postgres
-adapter loads item rows even when the application immediately projects the
-result into `OrderResume`. This is correct for the current port design but is
-a known performance trade-off.
+List responses use the application `OrderReadRepository` port and return
+`OrderResume` values directly. Detail reads still use `FindByID` and
+reconstruct full aggregates with item rows.
 
 ## Migrations
 

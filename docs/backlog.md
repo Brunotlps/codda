@@ -109,6 +109,8 @@ GitHub issue: [#7](https://github.com/Brunotlps/codda/issues/7)
 The repository port returns `[]*domain.Order`, so the Postgres adapter loads
 items even when the use case only returns `OrderResume`.
 
+Status: addressed by PR [#17](https://github.com/Brunotlps/codda/pull/17).
+
 Acceptance criteria:
 
 - Evaluate whether listing should use a dedicated read port.

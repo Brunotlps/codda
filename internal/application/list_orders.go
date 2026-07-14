@@ -23,11 +23,11 @@ type OrderResume struct {
 
 // ListOrdersUseCase lists orders as OrderResume projections.
 type ListOrdersUseCase struct {
-	repo OrderRepository
+	repo OrderReadRepository
 }
 
 // NewListOrdersUseCase creates a ListOrdersUseCase backed by repo.
-func NewListOrdersUseCase(repo OrderRepository) *ListOrdersUseCase {
+func NewListOrdersUseCase(repo OrderReadRepository) *ListOrdersUseCase {
 	return &ListOrdersUseCase{repo: repo}
 }
 
@@ -47,25 +47,10 @@ func (uc *ListOrdersUseCase) Execute(ctx context.Context, filters ListOrdersFilt
 		pagination.Offset = 0
 	}
 
-	orders, hasMore, err := uc.repo.List(ctx, filters, pagination)
+	resumes, hasMore, err := uc.repo.ListResumes(ctx, filters, pagination)
 	if err != nil {
 		return nil, false, err
 	}
 
-	resumes := make([]OrderResume, len(orders))
-	for i, o := range orders {
-		resumes[i] = toResume(o)
-	}
-
 	return resumes, hasMore, nil
-}
-
-// toResume projects o into an OrderResume.
-func toResume(o *domain.Order) OrderResume {
-	return OrderResume{
-		ID:        o.ID(),
-		Status:    o.Status(),
-		Total:     o.Total(),
-		CreatedAt: o.CreatedAt(),
-	}
 }

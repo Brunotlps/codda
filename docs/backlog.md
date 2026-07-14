@@ -44,7 +44,7 @@ GitHub issue: [#3](https://github.com/Brunotlps/codda/issues/3)
 The local smoke harness starts the app and exercises the main API flow outside
 `go test`.
 
-Status: addressed by the startup and smoke hardening fix.
+Status: addressed by PR [#16](https://github.com/Brunotlps/codda/pull/16).
 
 Acceptance criteria:
 
@@ -64,7 +64,7 @@ The migration source is `file://internal/adapters/postgres/migrations`. A
 built binary fails if it is executed from a directory where that relative path
 does not exist.
 
-Status: addressed by the startup and smoke hardening fix.
+Status: addressed by PR [#16](https://github.com/Brunotlps/codda/pull/16).
 
 Acceptance criteria:
 
@@ -152,7 +152,7 @@ GitHub issue: [#10](https://github.com/Brunotlps/codda/issues/10)
 If `server.Start` fails, `main` cancels the signal context and logs the same
 shutdown path as a normal signal-triggered shutdown.
 
-Status: addressed by the startup and smoke hardening fix.
+Status: addressed by PR [#16](https://github.com/Brunotlps/codda/pull/16).
 
 Acceptance criteria:
 

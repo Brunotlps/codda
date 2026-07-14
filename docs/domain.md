@@ -50,6 +50,10 @@ The domain enforces these invariants:
 Invariants live in constructors and methods that mutate state. Use cases and
 HTTP handlers do not duplicate these rules.
 
+Domain validation sentinels are classified through `IsValidationError`. HTTP
+and other adapters should use that helper instead of maintaining their own
+lists of validation errors.
+
 ## Order Creation
 
 `NewOrder(items)`:

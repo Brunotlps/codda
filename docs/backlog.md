@@ -41,14 +41,16 @@ Acceptance criteria:
 
 GitHub issue: [#3](https://github.com/Brunotlps/codda/issues/3)
 
-There is no simple end-to-end harness that starts the app and exercises the
-main API flow outside `go test`.
+The local smoke harness starts the app and exercises the main API flow outside
+`go test`.
+
+Status: addressed by PR [#16](https://github.com/Brunotlps/codda/pull/16).
 
 Acceptance criteria:
 
 - Start PostgreSQL locally.
 - Start the service.
-- Wait for `/health`.
+- Wait for `/ready`.
 - Create, read, pay, ship, and list an order.
 - Clean up the service process.
 
@@ -61,6 +63,8 @@ GitHub issue: [#4](https://github.com/Brunotlps/codda/issues/4)
 The migration source is `file://internal/adapters/postgres/migrations`. A
 built binary fails if it is executed from a directory where that relative path
 does not exist.
+
+Status: addressed by PR [#16](https://github.com/Brunotlps/codda/pull/16).
 
 Acceptance criteria:
 
@@ -147,6 +151,8 @@ GitHub issue: [#10](https://github.com/Brunotlps/codda/issues/10)
 
 If `server.Start` fails, `main` cancels the signal context and logs the same
 shutdown path as a normal signal-triggered shutdown.
+
+Status: addressed by PR [#16](https://github.com/Brunotlps/codda/pull/16).
 
 Acceptance criteria:
 

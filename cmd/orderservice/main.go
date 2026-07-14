@@ -4,17 +4,19 @@ import (
 	"context"
 	"errors"
 	"log"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/Brunotlps/codda/internal/adapters/http"
 	pgadapter "github.com/Brunotlps/codda/internal/adapters/postgres"
+	"github.com/Brunotlps/codda/internal/adapters/postgres/migrations"
 	"github.com/Brunotlps/codda/internal/application"
 	"github.com/Brunotlps/codda/internal/config"
 )
@@ -22,7 +24,6 @@ import (
 const (
 	shutdownTimeout = 10 * time.Second
 	pingTimeout     = 5 * time.Second
-	migrationsPath  = "file://internal/adapters/postgres/migrations"
 )
 
 // newPgxPool creates a connection pool for the given Postgres URL and
@@ -49,7 +50,12 @@ func newPgxPool(ctx context.Context, url string) (*pgxpool.Pool, error) {
 // URL. migrate.ErrNoChange indicates the schema is already up to date and
 // is not treated as an error.
 func applyMigrations(url string) error {
-	m, err := migrate.New(migrationsPath, url)
+	source, err := iofs.New(migrations.FS, ".")
+	if err != nil {
+		return err
+	}
+
+	m, err := migrate.NewWithSourceInstance("iofs", source, url)
 	if err != nil {
 		return err
 	}
@@ -71,6 +77,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
+	defer pool.Close()
 	log.Println("connected to database")
 
 	log.Println("applying migrations...")
@@ -95,16 +102,24 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	serverErr := make(chan error, 1)
 	go func() {
-		log.Printf("server started on %s", cfg.HTTPAddr)
-		if err := server.Start(); err != nil {
-			log.Printf("server error: %v", err)
-			stop()
-		}
+		log.Printf("server starting on %s", cfg.HTTPAddr)
+		serverErr <- server.Start()
 	}()
 
-	<-ctx.Done()
-	log.Println("received shutdown signal")
+	select {
+	case err := <-serverErr:
+		if err != nil {
+			log.Printf("server startup/runtime error: %v", err)
+		} else {
+			log.Println("server stopped unexpectedly without shutdown signal")
+		}
+		pool.Close()
+		os.Exit(1)
+	case <-ctx.Done():
+		log.Println("received shutdown signal")
+	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
@@ -113,6 +128,5 @@ func main() {
 		log.Printf("shutdown error: %v", err)
 	}
 
-	pool.Close()
 	log.Println("server stopped")
 }

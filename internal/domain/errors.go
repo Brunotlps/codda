@@ -8,6 +8,10 @@ var (
 	// negative amount of cents.
 	ErrNegativeMoney = errors.New("money amount must not be negative")
 
+	// ErrMoneyOverflow is returned when a money calculation would exceed the
+	// maximum amount representable in cents.
+	ErrMoneyOverflow = errors.New("money amount overflow")
+
 	// ErrEmptyProductID is returned when an order item's product ID is empty.
 	ErrEmptyProductID = errors.New("product id must not be empty")
 
@@ -47,6 +51,7 @@ var (
 
 var validationErrors = []error{
 	ErrNegativeMoney,
+	ErrMoneyOverflow,
 	ErrEmptyProductID,
 	ErrEmptyProductName,
 	ErrProductNameTooLong,

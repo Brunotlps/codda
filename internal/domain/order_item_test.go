@@ -2,6 +2,7 @@ package domain_test
 
 import (
 	"errors"
+	"math"
 	"strings"
 	"testing"
 
@@ -117,6 +118,14 @@ func TestNewOrderItem(t *testing.T) {
 			price:       makeMoney(t, 1000),
 			quantity:    1,
 			wantErr:     domain.ErrProductNameTooLong,
+		},
+		{
+			name:        "line total overflow",
+			productID:   "prod-1",
+			productName: "Widget",
+			price:       makeMoney(t, math.MaxInt64),
+			quantity:    2,
+			wantErr:     domain.ErrMoneyOverflow,
 		},
 	}
 
@@ -247,5 +256,20 @@ func TestOrderItem_WithQuantityDoesNotMutate(t *testing.T) {
 
 	if got := original.Quantity(); got != 2 {
 		t.Errorf("original was mutated by WithQuantity: got quantity %d, want 2", got)
+	}
+}
+
+func TestOrderItem_WithQuantityRejectsLineTotalOverflow(t *testing.T) {
+	original, err := domain.NewOrderItem("prod-1", "Widget", makeMoney(t, math.MaxInt64), 1)
+	if err != nil {
+		t.Fatalf("NewOrderItem(...) returned unexpected error: %v", err)
+	}
+
+	got, err := original.WithQuantity(2)
+	if !errors.Is(err, domain.ErrMoneyOverflow) {
+		t.Errorf("WithQuantity(...) error = %v, want %v", err, domain.ErrMoneyOverflow)
+	}
+	if got != (domain.OrderItem{}) {
+		t.Errorf("WithQuantity(...) = %+v, want zero value", got)
 	}
 }

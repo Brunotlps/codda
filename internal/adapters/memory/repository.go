@@ -56,11 +56,36 @@ func (r *OrderRepository) FindByID(ctx context.Context, id domain.OrderID) (*dom
 	return order, nil
 }
 
-// List returns the page of orders selected by pagination from those
+// ListResumes returns the page of order summaries selected by pagination from those
 // matching filters, along with whether further pages are available.
 // Results are ordered by createdAt descending, with ID descending as a
 // tiebreaker.
+func (r *OrderRepository) ListResumes(ctx context.Context, filters application.ListOrdersFilters, pagination application.Pagination) ([]application.OrderResume, bool, error) {
+	orders, hasMore, err := r.listOrders(ctx, filters, pagination)
+	if err != nil {
+		return nil, false, err
+	}
+
+	resumes := make([]application.OrderResume, 0, len(orders))
+	for _, order := range orders {
+		resumes = append(resumes, application.OrderResume{
+			ID:        order.ID(),
+			Status:    order.Status(),
+			Total:     order.Total(),
+			CreatedAt: order.CreatedAt(),
+		})
+	}
+
+	return resumes, hasMore, nil
+}
+
+// List returns full aggregates for adapter-level tests and diagnostics. The
+// application list use case depends on ListResumes instead.
 func (r *OrderRepository) List(ctx context.Context, filters application.ListOrdersFilters, pagination application.Pagination) ([]*domain.Order, bool, error) {
+	return r.listOrders(ctx, filters, pagination)
+}
+
+func (r *OrderRepository) listOrders(ctx context.Context, filters application.ListOrdersFilters, pagination application.Pagination) ([]*domain.Order, bool, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, false, err
 	}

@@ -36,9 +36,9 @@ type ListOrdersFilters struct {
 	PriceMax *domain.Money
 }
 
-// Pagination selects a page of a result set returned by
-// OrderRepository.List. The repository does not validate these values;
-// validation is the use case's responsibility.
+// Pagination selects a page of a result set returned by read ports. The
+// repository does not validate these values; validation is the use case's
+// responsibility.
 type Pagination struct {
 	// Offset is the number of matching orders to skip from the start of
 	// the result set.
@@ -60,10 +60,14 @@ type OrderRepository interface {
 	// FindByID retrieves the order with the given ID. It returns
 	// ErrOrderNotFound if no order with that ID exists.
 	FindByID(ctx context.Context, id domain.OrderID) (*domain.Order, error)
+}
 
-	// List returns the page of orders selected by pagination from those
-	// matching filters, along with whether further pages are available.
-	// Orders are returned by createdAt descending (most recent first),
-	// with ID descending as a tiebreaker, so that pagination is stable.
-	List(ctx context.Context, filters ListOrdersFilters, pagination Pagination) ([]*domain.Order, bool, error)
+// OrderReadRepository retrieves lightweight order projections for read-only
+// use cases.
+type OrderReadRepository interface {
+	// ListResumes returns the page of order summaries selected by pagination
+	// from those matching filters, along with whether further pages are
+	// available. Resumes are returned by createdAt descending (most recent
+	// first), with ID descending as a tiebreaker, so that pagination is stable.
+	ListResumes(ctx context.Context, filters ListOrdersFilters, pagination Pagination) ([]OrderResume, bool, error)
 }

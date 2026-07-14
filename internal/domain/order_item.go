@@ -37,6 +37,9 @@ func NewOrderItem(productID, productName string, price Money, quantity int) (Ord
 	if quantity < 1 {
 		return OrderItem{}, ErrInvalidQuantity
 	}
+	if _, err := price.CheckedMultiply(quantity); err != nil {
+		return OrderItem{}, err
+	}
 
 	return OrderItem{
 		productID:   productID,
@@ -72,10 +75,14 @@ func (i OrderItem) Total() Money {
 }
 
 // WithQuantity returns a copy of i with its quantity replaced by quantity.
-// It returns ErrInvalidQuantity if quantity is less than 1.
+// It returns ErrInvalidQuantity if quantity is less than 1, or
+// ErrMoneyOverflow if the resulting line total cannot be represented.
 func (i OrderItem) WithQuantity(quantity int) (OrderItem, error) {
 	if quantity < 1 {
 		return OrderItem{}, ErrInvalidQuantity
+	}
+	if _, err := i.price.CheckedMultiply(quantity); err != nil {
+		return OrderItem{}, err
 	}
 
 	i.quantity = quantity

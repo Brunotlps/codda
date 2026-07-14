@@ -104,8 +104,8 @@ func TestNewOrder(t *testing.T) {
 
 	t.Run("merge quantity overflow returns error", func(t *testing.T) {
 		items := []domain.OrderItem{
-			makeItem(t, "p1", "Widget", 1000, math.MaxInt),
-			makeItem(t, "p1", "Widget", 1000, math.MaxInt),
+			makeItem(t, "p1", "Widget", 1, math.MaxInt),
+			makeItem(t, "p1", "Widget", 1, math.MaxInt),
 		}
 
 		order, err := domain.NewOrder(items)
@@ -140,6 +140,21 @@ func TestNewOrder(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("total overflow returns error", func(t *testing.T) {
+		items := []domain.OrderItem{
+			makeItem(t, "p1", "Widget", math.MaxInt64, 1),
+			makeItem(t, "p2", "Gadget", 1, 1),
+		}
+
+		order, err := domain.NewOrder(items)
+		if !errors.Is(err, domain.ErrMoneyOverflow) {
+			t.Errorf("NewOrder(...) error = %v, want %v", err, domain.ErrMoneyOverflow)
+		}
+		if order != nil {
+			t.Errorf("NewOrder(...) = %v, want nil", order)
+		}
+	})
 }
 
 func TestHydrateOrder(t *testing.T) {
@@ -166,18 +181,33 @@ func TestHydrateOrder(t *testing.T) {
 		}
 	})
 
-	t.Run("does not merge duplicate product ids", func(t *testing.T) {
+	t.Run("rejects duplicate product ids", func(t *testing.T) {
 		items := []domain.OrderItem{
 			makeItem(t, "p1", "Widget", 1000, 2),
 			makeItem(t, "p1", "Widget", 1000, 3),
 		}
 
 		order, err := domain.HydrateOrder("order-1", items, domain.StatusPending, createdAt)
-		if err != nil {
-			t.Fatalf("HydrateOrder(...) returned unexpected error: %v", err)
+		if !errors.Is(err, domain.ErrDuplicateProductInOrder) {
+			t.Errorf("HydrateOrder(...) error = %v, want %v", err, domain.ErrDuplicateProductInOrder)
 		}
-		if got := order.Items(); len(got) != 2 {
-			t.Errorf("Items() returned %d items, want 2 (HydrateOrder must not merge)", len(got))
+		if order != nil {
+			t.Errorf("HydrateOrder(...) = %v, want nil", order)
+		}
+	})
+
+	t.Run("total overflow returns error", func(t *testing.T) {
+		items := []domain.OrderItem{
+			makeItem(t, "p1", "Widget", math.MaxInt64, 1),
+			makeItem(t, "p2", "Gadget", 1, 1),
+		}
+
+		order, err := domain.HydrateOrder("order-1", items, domain.StatusPending, createdAt)
+		if !errors.Is(err, domain.ErrMoneyOverflow) {
+			t.Errorf("HydrateOrder(...) error = %v, want %v", err, domain.ErrMoneyOverflow)
+		}
+		if order != nil {
+			t.Errorf("HydrateOrder(...) = %v, want nil", order)
 		}
 	})
 

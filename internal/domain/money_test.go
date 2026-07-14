@@ -2,6 +2,7 @@ package domain_test
 
 import (
 	"errors"
+	"math"
 	"testing"
 
 	"github.com/Brunotlps/codda/internal/domain"
@@ -128,6 +129,60 @@ func TestMoney_MultiplyDoesNotMutate(t *testing.T) {
 	if got := original.Cents(); got != 250 {
 		t.Errorf("original was mutated by Multiply: got %d cents, want 250", got)
 	}
+}
+
+func TestMoney_CheckedMultiply(t *testing.T) {
+	t.Run("returns product", func(t *testing.T) {
+		m := makeMoney(t, 250)
+
+		got, err := m.CheckedMultiply(4)
+		if err != nil {
+			t.Fatalf("CheckedMultiply(...) returned unexpected error: %v", err)
+		}
+		if got.Cents() != 1000 {
+			t.Errorf("CheckedMultiply(...) = %d cents, want 1000", got.Cents())
+		}
+	})
+
+	t.Run("rejects overflow", func(t *testing.T) {
+		m := makeMoney(t, math.MaxInt64)
+
+		got, err := m.CheckedMultiply(2)
+		if !errors.Is(err, domain.ErrMoneyOverflow) {
+			t.Fatalf("CheckedMultiply(...) error = %v, want %v", err, domain.ErrMoneyOverflow)
+		}
+		if got != (domain.Money{}) {
+			t.Errorf("CheckedMultiply(...) = %v, want zero value", got)
+		}
+	})
+}
+
+func TestMoney_CheckedAdd(t *testing.T) {
+	t.Run("returns sum", func(t *testing.T) {
+		a := makeMoney(t, 100)
+		b := makeMoney(t, 250)
+
+		got, err := a.CheckedAdd(b)
+		if err != nil {
+			t.Fatalf("CheckedAdd(...) returned unexpected error: %v", err)
+		}
+		if got.Cents() != 350 {
+			t.Errorf("CheckedAdd(...) = %d cents, want 350", got.Cents())
+		}
+	})
+
+	t.Run("rejects overflow", func(t *testing.T) {
+		a := makeMoney(t, math.MaxInt64)
+		b := makeMoney(t, 1)
+
+		got, err := a.CheckedAdd(b)
+		if !errors.Is(err, domain.ErrMoneyOverflow) {
+			t.Fatalf("CheckedAdd(...) error = %v, want %v", err, domain.ErrMoneyOverflow)
+		}
+		if got != (domain.Money{}) {
+			t.Errorf("CheckedAdd(...) = %v, want zero value", got)
+		}
+	})
 }
 
 func TestMoney_String(t *testing.T) {

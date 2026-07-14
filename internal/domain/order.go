@@ -33,6 +33,9 @@ func NewOrder(items []OrderItem) (*Order, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := validateOrderItems(merged); err != nil {
+		return nil, err
+	}
 
 	return &Order{
 		id:        OrderID(uuid.NewString()),
@@ -45,11 +48,11 @@ func NewOrder(items []OrderItem) (*Order, error) {
 // HydrateOrder reconstructs an existing Order from persisted data. It is
 // intended for repositories rebuilding aggregates from storage, not for
 // creating new orders — use NewOrder for that. Unlike NewOrder, it does not
-// generate an ID, assign the current time, or merge items by product ID; it
-// trusts items to already be the result of that merge, as persisted.
+// generate an ID, assign the current time, or merge items by product ID.
 // HydrateOrder returns ErrEmptyOrderID if id is empty, ErrOrderRequiresItems
-// if items is empty, or ErrInvalidStatus if status is not a known
-// OrderStatus.
+// if items is empty, ErrInvalidStatus if status is not a known OrderStatus,
+// ErrDuplicateProductInOrder if items contains duplicate product IDs, or
+// ErrMoneyOverflow if the persisted totals cannot be represented.
 func HydrateOrder(id OrderID, items []OrderItem, status OrderStatus, createdAt time.Time) (*Order, error) {
 	if id == "" {
 		return nil, ErrEmptyOrderID
@@ -59,6 +62,9 @@ func HydrateOrder(id OrderID, items []OrderItem, status OrderStatus, createdAt t
 	}
 	if !status.IsValid() {
 		return nil, ErrInvalidStatus
+	}
+	if err := validateOrderItems(items); err != nil {
+		return nil, err
 	}
 
 	hydrated := make([]OrderItem, len(items))
@@ -88,7 +94,12 @@ func mergeItems(items []OrderItem) ([]OrderItem, error) {
 		}
 
 		if foundIdx >= 0 {
-			updated, err := merged[foundIdx].WithQuantity(merged[foundIdx].Quantity() + item.Quantity())
+			quantity := merged[foundIdx].Quantity()
+			if item.Quantity() > int(^uint(0)>>1)-quantity {
+				return nil, ErrInvalidQuantity
+			}
+
+			updated, err := merged[foundIdx].WithQuantity(quantity + item.Quantity())
 			if err != nil {
 				return nil, err
 			}
@@ -99,6 +110,29 @@ func mergeItems(items []OrderItem) ([]OrderItem, error) {
 	}
 
 	return merged, nil
+}
+
+func validateOrderItems(items []OrderItem) error {
+	seenProductIDs := make(map[string]struct{}, len(items))
+	var total Money
+
+	for _, item := range items {
+		if _, ok := seenProductIDs[item.ProductID()]; ok {
+			return ErrDuplicateProductInOrder
+		}
+		seenProductIDs[item.ProductID()] = struct{}{}
+
+		lineTotal, err := item.price.CheckedMultiply(item.quantity)
+		if err != nil {
+			return err
+		}
+		total, err = total.CheckedAdd(lineTotal)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // ID returns the order's unique identifier.

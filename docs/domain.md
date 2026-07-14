@@ -43,8 +43,10 @@ The domain enforces these invariants:
 - Item price must be greater than zero.
 - Item quantity must be at least one.
 - Money must not be negative.
+- Item totals and order totals must fit in `int64` cents.
 - Hydrated orders must have a non-empty ID.
 - Hydrated orders must have a valid status.
+- Hydrated orders must not contain duplicate product IDs.
 - Status transitions must follow the state machine.
 
 Invariants live in constructors and methods that mutate state. Use cases and
@@ -71,7 +73,8 @@ The domain owns identity generation. The database does not create order IDs.
 
 `HydrateOrder(id, items, status, createdAt)` rebuilds an existing order from
 persistence. It does not generate a new ID, does not merge items, and does not
-replace `createdAt`.
+replace `createdAt`. Persisted duplicate product IDs are rejected instead of
+merged so data corruption remains visible.
 
 Persistence adapters must rebuild `Money` and `OrderItem` through domain
 constructors before hydration so corrupted database rows surface as domain
@@ -105,8 +108,8 @@ Methods:
 
 There is no public status setter.
 
-## Known Domain Risks
+## Money Arithmetic
 
-- `Money.Multiply` can overflow `int64` for extreme values.
-- `ErrDuplicateProductInOrder` is defined but not currently enforced during
-  hydration.
+`Money.CheckedAdd` and `Money.CheckedMultiply` provide overflow-aware
+operations. Constructors and hydration paths use these checks so persisted and
+new aggregates cannot represent totals that overflow `int64` cents.

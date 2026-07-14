@@ -1,6 +1,9 @@
 package domain
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 // centsPerUnit is the number of cents in one unit of currency (e.g., one real).
 const centsPerUnit = 100
@@ -32,12 +35,40 @@ func (m Money) Add(other Money) Money {
 	return Money{cents: m.cents + other.cents}
 }
 
+// CheckedAdd returns the sum of m and other, or ErrMoneyOverflow if the
+// result cannot be represented in cents.
+func (m Money) CheckedAdd(other Money) (Money, error) {
+	if other.cents > math.MaxInt64-m.cents {
+		return Money{}, ErrMoneyOverflow
+	}
+
+	return Money{cents: m.cents + other.cents}, nil
+}
+
 // Multiply returns m scaled by n as a new Money value. It assumes n is
 // non-negative; callers scaling by a quantity should rely on the
-// quantity invariant (>= 1) being enforced beforehand.
-// int64 overflow risk -> for the future
+// quantity and overflow invariants being enforced beforehand.
 func (m Money) Multiply(n int) Money {
 	return Money{cents: m.cents * int64(n)}
+}
+
+// CheckedMultiply returns m scaled by n, or ErrMoneyOverflow if the result
+// cannot be represented in cents. A negative factor is invalid for money
+// scaling in this domain and returns ErrInvalidQuantity.
+func (m Money) CheckedMultiply(n int) (Money, error) {
+	if n < 0 {
+		return Money{}, ErrInvalidQuantity
+	}
+	if n == 0 {
+		return Money{}, nil
+	}
+
+	factor := int64(n)
+	if m.cents > math.MaxInt64/factor {
+		return Money{}, ErrMoneyOverflow
+	}
+
+	return Money{cents: m.cents * factor}, nil
 }
 
 // String returns m formatted as a BRL amount, e.g. "R$ 19,99". It is intended

@@ -247,6 +247,40 @@ func TestCreateOrder(t *testing.T) {
 			t.Errorf("Error.Code = %q, want %q", errResp.Error.Code, "validation_error")
 		}
 	})
+
+	for _, tt := range []struct {
+		name       string
+		secondItem coddaHTTP.CreateOrderItemRequest
+	}{
+		{
+			name:       "conflicting price",
+			secondItem: coddaHTTP.CreateOrderItemRequest{ProductID: "p1", ProductName: "Widget", PriceCents: 5000, Quantity: 1},
+		},
+		{
+			name:       "conflicting name",
+			secondItem: coddaHTTP.CreateOrderItemRequest{ProductID: "p1", ProductName: "Gadget", PriceCents: 1000, Quantity: 1},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			env := setupTestServer(t)
+			reqBody := coddaHTTP.CreateOrderRequest{Items: []coddaHTTP.CreateOrderItemRequest{
+				{ProductID: "p1", ProductName: "Widget", PriceCents: 1000, Quantity: 1},
+				tt.secondItem,
+			}}
+
+			resp := postJSON(t, env.server.URL+"/orders", reqBody)
+			if resp.StatusCode != http.StatusBadRequest {
+				resp.Body.Close()
+				t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
+			}
+
+			var errResp coddaHTTP.ErrorResponse
+			decodeJSON(t, resp, &errResp)
+			if errResp.Error.Code != "validation_error" {
+				t.Errorf("Error.Code = %q, want %q", errResp.Error.Code, "validation_error")
+			}
+		})
+	}
 }
 
 func TestFindOrderByID(t *testing.T) {

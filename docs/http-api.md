@@ -46,6 +46,10 @@ Request:
 }
 ```
 
+Each item quantity must be between `1` and `2,147,483,647`. If repeated
+`product_id` values are merged, their combined quantity must also fit this
+range. Larger quantities return `400 validation_error`.
+
 Response `201 Created`:
 
 ```json

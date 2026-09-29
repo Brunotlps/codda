@@ -135,18 +135,36 @@ func TestNewOrder(t *testing.T) {
 		}
 	})
 
-	t.Run("merge quantity overflow returns error", func(t *testing.T) {
+	t.Run("merged quantity above storage maximum returns error", func(t *testing.T) {
 		items := []domain.OrderItem{
-			makeItem(t, "p1", "Widget", 1, math.MaxInt),
-			makeItem(t, "p1", "Widget", 1, math.MaxInt),
+			makeItem(t, "p1", "Widget", 1, math.MaxInt32),
+			makeItem(t, "p1", "Widget", 1, 1),
 		}
 
 		order, err := domain.NewOrder(items)
-		if !errors.Is(err, domain.ErrInvalidQuantity) {
-			t.Errorf("NewOrder(...) error = %v, want %v", err, domain.ErrInvalidQuantity)
+		if !errors.Is(err, domain.ErrQuantityTooLarge) {
+			t.Errorf("NewOrder(...) error = %v, want %v", err, domain.ErrQuantityTooLarge)
 		}
 		if order != nil {
 			t.Errorf("NewOrder(...) = %v, want nil", order)
+		}
+	})
+
+	t.Run("merged quantity at storage maximum succeeds", func(t *testing.T) {
+		items := []domain.OrderItem{
+			makeItem(t, "p1", "Widget", 1, math.MaxInt32-1),
+			makeItem(t, "p1", "Widget", 1, 1),
+		}
+
+		order, err := domain.NewOrder(items)
+		if err != nil {
+			t.Fatalf("NewOrder(...) returned unexpected error: %v", err)
+		}
+		if got := order.Items()[0].Quantity(); got != math.MaxInt32 {
+			t.Errorf("merged quantity = %d, want %d", got, math.MaxInt32)
+		}
+		if got := order.Total().Cents(); got != math.MaxInt32 {
+			t.Errorf("Total().Cents() = %d, want %d", got, math.MaxInt32)
 		}
 	})
 

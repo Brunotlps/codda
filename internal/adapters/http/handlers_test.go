@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -234,6 +235,49 @@ func TestCreateOrder(t *testing.T) {
 		env := setupTestServer(t)
 
 		reqBody := coddaHTTP.CreateOrderRequest{Items: nil}
+
+		resp := postJSON(t, env.server.URL+"/orders", reqBody)
+		if resp.StatusCode != http.StatusBadRequest {
+			resp.Body.Close()
+			t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
+		}
+
+		var errResp coddaHTTP.ErrorResponse
+		decodeJSON(t, resp, &errResp)
+		if errResp.Error.Code != "validation_error" {
+			t.Errorf("Error.Code = %q, want %q", errResp.Error.Code, "validation_error")
+		}
+	})
+
+	t.Run("quantity above storage range", func(t *testing.T) {
+		if strconv.IntSize < 64 {
+			t.Skip("a Go int cannot exceed the PostgreSQL INTEGER range on this platform")
+		}
+		env := setupTestServer(t)
+		aboveMax := int64(domain.MaxOrderItemQuantity) + 1
+		reqBody := coddaHTTP.CreateOrderRequest{Items: []coddaHTTP.CreateOrderItemRequest{
+			{ProductID: "p1", ProductName: "Widget", PriceCents: 1, Quantity: int(aboveMax)},
+		}}
+
+		resp := postJSON(t, env.server.URL+"/orders", reqBody)
+		if resp.StatusCode != http.StatusBadRequest {
+			resp.Body.Close()
+			t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
+		}
+
+		var errResp coddaHTTP.ErrorResponse
+		decodeJSON(t, resp, &errResp)
+		if errResp.Error.Code != "validation_error" {
+			t.Errorf("Error.Code = %q, want %q", errResp.Error.Code, "validation_error")
+		}
+	})
+
+	t.Run("merged quantity above storage range", func(t *testing.T) {
+		env := setupTestServer(t)
+		reqBody := coddaHTTP.CreateOrderRequest{Items: []coddaHTTP.CreateOrderItemRequest{
+			{ProductID: "p1", ProductName: "Widget", PriceCents: 1, Quantity: domain.MaxOrderItemQuantity},
+			{ProductID: "p1", ProductName: "Widget", PriceCents: 1, Quantity: 1},
+		}}
 
 		resp := postJSON(t, env.server.URL+"/orders", reqBody)
 		if resp.StatusCode != http.StatusBadRequest {

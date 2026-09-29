@@ -25,6 +25,10 @@ var (
 	// ErrInvalidQuantity is returned when an order item's quantity is less than 1.
 	ErrInvalidQuantity = errors.New("quantity must be greater than or equal to 1")
 
+	// ErrQuantityTooLarge is returned when an order item's quantity exceeds
+	// the maximum value supported by persistence.
+	ErrQuantityTooLarge = errors.New("quantity exceeds maximum of 2147483647")
+
 	// ErrInvalidPrice is returned when an order item's price is not greater than zero.
 	ErrInvalidPrice = errors.New("price must be greater than zero")
 
@@ -60,6 +64,7 @@ var validationErrors = []error{
 	ErrEmptyProductName,
 	ErrProductNameTooLong,
 	ErrInvalidQuantity,
+	ErrQuantityTooLarge,
 	ErrInvalidPrice,
 	ErrEmptyOrderID,
 	ErrOrderRequiresItems,

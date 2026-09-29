@@ -99,8 +99,8 @@ func mergeItems(items []OrderItem) ([]OrderItem, error) {
 				return nil, ErrConflictingProductInOrder
 			}
 			quantity := existing.Quantity()
-			if item.Quantity() > int(^uint(0)>>1)-quantity {
-				return nil, ErrInvalidQuantity
+			if item.Quantity() > MaxOrderItemQuantity-quantity {
+				return nil, ErrQuantityTooLarge
 			}
 
 			updated, err := existing.WithQuantity(quantity + item.Quantity())

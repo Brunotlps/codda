@@ -3,6 +3,7 @@ package postgres_test
 import (
 	"context"
 	"errors"
+	"math"
 	"testing"
 	"time"
 
@@ -31,6 +32,23 @@ func makeOrder(t *testing.T, productID string, cents int64, quantity int) *domai
 
 func TestOrderRepository_Save(t *testing.T) {
 	ctx := context.Background()
+
+	t.Run("saves maximum quantity", func(t *testing.T) {
+		truncateTables(t)
+		repo := postgres.NewOrderRepository(testPool)
+		order := makeOrder(t, "p1", 1, math.MaxInt32)
+		if err := repo.Save(ctx, order); err != nil {
+			t.Fatalf("Save: %v", err)
+		}
+
+		saved, err := repo.FindByID(ctx, order.ID())
+		if err != nil {
+			t.Fatalf("FindByID: %v", err)
+		}
+		if got := saved.Items()[0].Quantity(); got != math.MaxInt32 {
+			t.Errorf("Quantity() = %d, want %d", got, math.MaxInt32)
+		}
+	})
 
 	t.Run("saves_new_order", func(t *testing.T) {
 		truncateTables(t)

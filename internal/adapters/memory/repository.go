@@ -29,11 +29,15 @@ func (r *OrderRepository) Save(ctx context.Context, order *domain.Order) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	stored, err := cloneOrder(order)
+	if err != nil {
+		return err
+	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.orders[order.ID()] = order
+	r.orders[order.ID()] = stored
 
 	return nil
 }
@@ -53,7 +57,32 @@ func (r *OrderRepository) FindByID(ctx context.Context, id domain.OrderID) (*dom
 		return nil, application.ErrOrderNotFound
 	}
 
-	return order, nil
+	return cloneOrder(order)
+}
+
+// UpdateStatus changes the stored status only if it still matches expected.
+func (r *OrderRepository) UpdateStatus(ctx context.Context, id domain.OrderID, expected, next domain.OrderStatus) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	order, ok := r.orders[id]
+	if !ok {
+		return application.ErrOrderNotFound
+	}
+	if order.Status() != expected {
+		return domain.ErrInvalidStatusTransition
+	}
+
+	updated, err := domain.HydrateOrder(id, order.Items(), next, order.CreatedAt())
+	if err != nil {
+		return err
+	}
+	r.orders[id] = updated
+	return nil
 }
 
 // ListResumes returns the page of order summaries selected by pagination from those
@@ -118,9 +147,19 @@ func (r *OrderRepository) listOrders(ctx context.Context, filters application.Li
 	hasMore := len(filtered) > end
 
 	page := make([]*domain.Order, end-start)
-	copy(page, filtered[start:end])
+	for i, order := range filtered[start:end] {
+		copy, err := cloneOrder(order)
+		if err != nil {
+			return nil, false, err
+		}
+		page[i] = copy
+	}
 
 	return page, hasMore, nil
+}
+
+func cloneOrder(order *domain.Order) (*domain.Order, error) {
+	return domain.HydrateOrder(order.ID(), order.Items(), order.Status(), order.CreatedAt())
 }
 
 // matchesFilters reports whether order satisfies every constraint set in

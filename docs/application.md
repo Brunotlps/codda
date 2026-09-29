@@ -11,6 +11,7 @@ does not own domain rules.
 type OrderRepository interface {
     Save(ctx context.Context, order *domain.Order) error
     FindByID(ctx context.Context, id domain.OrderID) (*domain.Order, error)
+    UpdateStatus(ctx context.Context, id domain.OrderID, expected, next domain.OrderStatus) error
 }
 ```
 
@@ -93,7 +94,10 @@ Each transition follows the same shape:
 
 1. Load the order.
 2. Call the domain method.
-3. Save the order.
+3. Persist the new status only if the stored status still matches the value
+   loaded in step 1.
 
 The use case never checks `order.Status()` to decide whether the transition is
-valid. That rule belongs to the aggregate.
+valid. That rule belongs to the aggregate. If another request changes the
+status first, the repository returns `ErrInvalidStatusTransition` and the HTTP
+adapter responds with `409 invalid_status_transition`.

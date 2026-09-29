@@ -25,10 +25,11 @@ func (uc *MarkOrderAsPaidUseCase) Execute(ctx context.Context, id domain.OrderID
 	if err != nil {
 		return err
 	}
+	expected := order.Status()
 
 	if err := order.MarkAsPaid(); err != nil {
 		return err
 	}
 
-	return uc.repo.Save(ctx, order)
+	return uc.repo.UpdateStatus(ctx, id, expected, order.Status())
 }

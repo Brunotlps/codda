@@ -46,6 +46,20 @@ The adapter decides through PostgreSQL `ON CONFLICT`.
 
 `created_at` is inserted on first save and not updated on conflict.
 
+## Status Transitions
+
+The transition use cases call `UpdateStatus` after validating the requested
+change in the domain. PostgreSQL uses a single conditional update:
+
+```sql
+UPDATE orders SET status = $3 WHERE id = $1 AND status = $2;
+```
+
+Only the request that still sees its expected status can update the row.
+Another request using a stale status receives `ErrInvalidStatusTransition`;
+a missing order receives `ErrOrderNotFound`. This path does not replace
+`order_items`.
+
 ## FindByID
 
 `FindByID`:

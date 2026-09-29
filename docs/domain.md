@@ -42,6 +42,8 @@ The domain enforces these invariants:
 - Product name must not exceed 255 characters.
 - Item price must be greater than zero.
 - Item quantity must be at least one.
+- Items with the same product ID can be merged only when their names and unit
+  prices are identical.
 - Money must not be negative.
 - Item totals and order totals must fit in `int64` cents.
 - Hydrated orders must have a non-empty ID.
@@ -61,7 +63,9 @@ lists of validation errors.
 `NewOrder(items)`:
 
 - rejects empty item lists;
-- merges duplicate product IDs by summing quantities;
+- merges duplicate product IDs by summing quantities only when product names
+  and unit prices match;
+- rejects conflicting product details with `ErrConflictingProductInOrder`;
 - preserves the first-seen product order;
 - generates the order ID in the domain;
 - sets status to `pending`;

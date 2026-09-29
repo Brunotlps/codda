@@ -19,11 +19,11 @@ type Order struct {
 }
 
 // NewOrder creates an Order from items. Items sharing the same product ID
-// are merged into a single OrderItem with their quantities summed,
-// preserving the order in which each product ID first appears. NewOrder
-// returns ErrOrderRequiresItems if items is empty. The resulting Order is
-// assigned a generated ID, status StatusPending, and the current time as
-// createdAt.
+// are merged when their names and unit prices match, with their quantities
+// summed and the order of first appearance preserved. Conflicting details
+// return ErrConflictingProductInOrder. NewOrder returns ErrOrderRequiresItems
+// if items is empty. The resulting Order is assigned a generated ID, status
+// StatusPending, and the current time as createdAt.
 func NewOrder(items []OrderItem) (*Order, error) {
 	if len(items) == 0 {
 		return nil, ErrOrderRequiresItems
@@ -78,9 +78,9 @@ func HydrateOrder(id OrderID, items []OrderItem, status OrderStatus, createdAt t
 	}, nil
 }
 
-// mergeItems combines items that share the same product ID into a single
-// OrderItem with their quantities summed, preserving the order in which
-// each product ID first appears. The returned slice does not alias items.
+// mergeItems combines items that share a product ID and matching details,
+// preserving the order in which each product ID first appears. The returned
+// slice does not alias items.
 func mergeItems(items []OrderItem) ([]OrderItem, error) {
 	var merged []OrderItem
 
@@ -94,12 +94,16 @@ func mergeItems(items []OrderItem) ([]OrderItem, error) {
 		}
 
 		if foundIdx >= 0 {
-			quantity := merged[foundIdx].Quantity()
+			existing := merged[foundIdx]
+			if existing.ProductName() != item.ProductName() || existing.Price() != item.Price() {
+				return nil, ErrConflictingProductInOrder
+			}
+			quantity := existing.Quantity()
 			if item.Quantity() > int(^uint(0)>>1)-quantity {
 				return nil, ErrInvalidQuantity
 			}
 
-			updated, err := merged[foundIdx].WithQuantity(quantity + item.Quantity())
+			updated, err := existing.WithQuantity(quantity + item.Quantity())
 			if err != nil {
 				return nil, err
 			}

@@ -47,6 +47,10 @@ var (
 	// than one item sharing the same product ID. It guards order construction
 	// and validation paths that do not go through item-merging logic.
 	ErrDuplicateProductInOrder = errors.New("order contains duplicate product id")
+
+	// ErrConflictingProductInOrder is returned when items with the same product
+	// ID have different names or unit prices during order creation.
+	ErrConflictingProductInOrder = errors.New("order contains conflicting details for product id")
 )
 
 var validationErrors = []error{
@@ -61,6 +65,7 @@ var validationErrors = []error{
 	ErrOrderRequiresItems,
 	ErrInvalidStatus,
 	ErrDuplicateProductInOrder,
+	ErrConflictingProductInOrder,
 }
 
 // IsValidationError reports whether err is or wraps one of the domain

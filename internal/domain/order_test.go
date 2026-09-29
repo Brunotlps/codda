@@ -100,6 +100,39 @@ func TestNewOrder(t *testing.T) {
 		if got[0].Quantity() != 5 {
 			t.Errorf("merged item quantity = %d, want %d", got[0].Quantity(), 5)
 		}
+		if got := order.Total().Cents(); got != 5000 {
+			t.Errorf("Total().Cents() = %d, want 5000", got)
+		}
+	})
+
+	t.Run("rejects conflicting prices for the same product id", func(t *testing.T) {
+		items := []domain.OrderItem{
+			makeItem(t, "p1", "Widget", 1000, 1),
+			makeItem(t, "p1", "Widget", 5000, 1),
+		}
+
+		order, err := domain.NewOrder(items)
+		if !errors.Is(err, domain.ErrConflictingProductInOrder) {
+			t.Errorf("NewOrder(...) error = %v, want %v", err, domain.ErrConflictingProductInOrder)
+		}
+		if order != nil {
+			t.Errorf("NewOrder(...) = %v, want nil", order)
+		}
+	})
+
+	t.Run("rejects conflicting names for the same product id", func(t *testing.T) {
+		items := []domain.OrderItem{
+			makeItem(t, "p1", "Widget", 1000, 1),
+			makeItem(t, "p1", "Gadget", 1000, 1),
+		}
+
+		order, err := domain.NewOrder(items)
+		if !errors.Is(err, domain.ErrConflictingProductInOrder) {
+			t.Errorf("NewOrder(...) error = %v, want %v", err, domain.ErrConflictingProductInOrder)
+		}
+		if order != nil {
+			t.Errorf("NewOrder(...) = %v, want nil", order)
+		}
 	})
 
 	t.Run("merge quantity overflow returns error", func(t *testing.T) {

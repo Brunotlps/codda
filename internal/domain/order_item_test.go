@@ -3,6 +3,7 @@ package domain_test
 import (
 	"errors"
 	"math"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -104,6 +105,14 @@ func TestNewOrderItem(t *testing.T) {
 			wantErr:     nil,
 		},
 		{
+			name:        "quantity at storage maximum",
+			productID:   "prod-1",
+			productName: "Widget",
+			price:       makeMoney(t, 1),
+			quantity:    math.MaxInt32,
+			wantErr:     nil,
+		},
+		{
 			name:        "product name with accents within rune limit",
 			productID:   "prod-1",
 			productName: strings.Repeat("ã", domain.MaxProductNameLength),
@@ -159,6 +168,20 @@ func TestNewOrderItem(t *testing.T) {
 	}
 }
 
+func TestNewOrderItemRejectsQuantityAboveStorageRange(t *testing.T) {
+	if strconv.IntSize < 64 {
+		t.Skip("a Go int cannot exceed the PostgreSQL INTEGER range on this platform")
+	}
+	aboveMax := int64(math.MaxInt32) + 1
+	item, err := domain.NewOrderItem("prod-1", "Widget", makeMoney(t, 1), int(aboveMax))
+	if !errors.Is(err, domain.ErrQuantityTooLarge) {
+		t.Errorf("NewOrderItem(...) error = %v, want %v", err, domain.ErrQuantityTooLarge)
+	}
+	if item != (domain.OrderItem{}) {
+		t.Errorf("NewOrderItem(...) = %+v, want zero value", item)
+	}
+}
+
 func TestOrderItem_Getters(t *testing.T) {
 	price := makeMoney(t, 1500)
 
@@ -207,6 +230,7 @@ func TestOrderItem_Total(t *testing.T) {
 }
 
 func TestOrderItem_WithQuantity(t *testing.T) {
+	aboveMax := int64(math.MaxInt32) + 1
 	tests := []struct {
 		name         string
 		quantity     int
@@ -214,12 +238,17 @@ func TestOrderItem_WithQuantity(t *testing.T) {
 		wantQuantity int
 	}{
 		{name: "valid new quantity", quantity: 5, wantErr: nil, wantQuantity: 5},
+		{name: "quantity at storage maximum", quantity: math.MaxInt32, wantErr: nil, wantQuantity: math.MaxInt32},
+		{name: "quantity above storage maximum", quantity: int(aboveMax), wantErr: domain.ErrQuantityTooLarge},
 		{name: "zero quantity", quantity: 0, wantErr: domain.ErrInvalidQuantity},
 		{name: "negative quantity", quantity: -1, wantErr: domain.ErrInvalidQuantity},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.name == "quantity above storage maximum" && strconv.IntSize < 64 {
+				t.Skip("a Go int cannot exceed the PostgreSQL INTEGER range on this platform")
+			}
 			original, err := domain.NewOrderItem("prod-1", "Widget", makeMoney(t, 1000), 1)
 			if err != nil {
 				t.Fatalf("NewOrderItem(...) returned unexpected error: %v", err)

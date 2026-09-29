@@ -32,6 +32,10 @@ Indexes:
 - `idx_orders_created_at`
 - `idx_orders_status`
 
+The domain caps each item quantity at 2,147,483,647, including after item
+merging, to match the PostgreSQL `INTEGER` range. Oversized quantities fail
+validation before `Save` attempts to insert an item.
+
 ## Save
 
 `Save` runs in a transaction:

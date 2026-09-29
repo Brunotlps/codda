@@ -77,6 +77,33 @@ func (r *OrderRepository) Save(ctx context.Context, order *domain.Order) error {
 	return nil
 }
 
+// UpdateStatus changes an order's status only when its current status matches
+// expected. A competing transition returns domain.ErrInvalidStatusTransition.
+func (r *OrderRepository) UpdateStatus(ctx context.Context, id domain.OrderID, expected, next domain.OrderStatus) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	const updateStatus = `UPDATE orders SET status = $3 WHERE id = $1 AND status = $2`
+	result, err := r.pool.Exec(ctx, updateStatus, string(id), string(expected), string(next))
+	if err != nil {
+		return fmt.Errorf("update order status: %w", err)
+	}
+	if result.RowsAffected() == 1 {
+		return nil
+	}
+
+	const orderExists = `SELECT EXISTS(SELECT 1 FROM orders WHERE id = $1)`
+	var exists bool
+	if err := r.pool.QueryRow(ctx, orderExists, string(id)).Scan(&exists); err != nil {
+		return fmt.Errorf("check order existence: %w", err)
+	}
+	if !exists {
+		return application.ErrOrderNotFound
+	}
+	return domain.ErrInvalidStatusTransition
+}
+
 // FindByID retrieves the order with the given ID, reconstructing the domain
 // aggregate via rowsToOrder. It returns application.ErrOrderNotFound if no
 // order with that ID exists.

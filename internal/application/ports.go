@@ -60,6 +60,11 @@ type OrderRepository interface {
 	// FindByID retrieves the order with the given ID. It returns
 	// ErrOrderNotFound if no order with that ID exists.
 	FindByID(ctx context.Context, id domain.OrderID) (*domain.Order, error)
+
+	// UpdateStatus persists next only when the stored status still matches
+	// expected. It returns ErrOrderNotFound for a missing order or
+	// domain.ErrInvalidStatusTransition when the status changed.
+	UpdateStatus(ctx context.Context, id domain.OrderID, expected, next domain.OrderStatus) error
 }
 
 // OrderReadRepository retrieves lightweight order projections for read-only

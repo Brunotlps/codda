@@ -99,6 +99,26 @@ func TestOrderRepository_Save(t *testing.T) {
 	})
 }
 
+func TestOrderRepository_SaveDetachesOrder(t *testing.T) {
+	repo := memory.NewOrderRepository()
+	order := makeOrder(t, "p1", 1000, 1)
+	if err := repo.Save(context.Background(), order); err != nil {
+		t.Fatalf("Save(...) returned unexpected error: %v", err)
+	}
+
+	if err := order.MarkAsPaid(); err != nil {
+		t.Fatalf("MarkAsPaid() returned unexpected error: %v", err)
+	}
+
+	got, err := repo.FindByID(context.Background(), order.ID())
+	if err != nil {
+		t.Fatalf("FindByID(...) returned unexpected error: %v", err)
+	}
+	if got.Status() != domain.StatusPending {
+		t.Errorf("Status() = %v after caller mutation, want %v", got.Status(), domain.StatusPending)
+	}
+}
+
 func TestOrderRepository_FindByID(t *testing.T) {
 	t.Run("order present", func(t *testing.T) {
 		repo := memory.NewOrderRepository()
@@ -135,6 +155,88 @@ func TestOrderRepository_FindByID(t *testing.T) {
 		_, err := repo.FindByID(ctx, domain.OrderID("p1"))
 		if !errors.Is(err, context.Canceled) {
 			t.Errorf("FindByID(...) error = %v, want %v", err, context.Canceled)
+		}
+	})
+}
+
+func TestOrderRepository_FindByIDDetachesOrder(t *testing.T) {
+	repo := memory.NewOrderRepository()
+	order := makeOrder(t, "p1", 1000, 1)
+	if err := repo.Save(context.Background(), order); err != nil {
+		t.Fatalf("Save(...) returned unexpected error: %v", err)
+	}
+
+	found, err := repo.FindByID(context.Background(), order.ID())
+	if err != nil {
+		t.Fatalf("FindByID(...) returned unexpected error: %v", err)
+	}
+	if err := found.MarkAsPaid(); err != nil {
+		t.Fatalf("MarkAsPaid() returned unexpected error: %v", err)
+	}
+
+	got, err := repo.FindByID(context.Background(), order.ID())
+	if err != nil {
+		t.Fatalf("FindByID(...) returned unexpected error: %v", err)
+	}
+	if got.Status() != domain.StatusPending {
+		t.Errorf("Status() = %v after returned order mutation, want %v", got.Status(), domain.StatusPending)
+	}
+}
+
+func TestOrderRepository_UpdateStatus(t *testing.T) {
+	t.Run("updates matching status", func(t *testing.T) {
+		repo := memory.NewOrderRepository()
+		order := makeOrder(t, "p1", 1000, 2)
+		if err := repo.Save(context.Background(), order); err != nil {
+			t.Fatalf("Save(...) returned unexpected error: %v", err)
+		}
+
+		if err := repo.UpdateStatus(context.Background(), order.ID(), domain.StatusPending, domain.StatusPaid); err != nil {
+			t.Fatalf("UpdateStatus(...) returned unexpected error: %v", err)
+		}
+		got, err := repo.FindByID(context.Background(), order.ID())
+		if err != nil {
+			t.Fatalf("FindByID(...) returned unexpected error: %v", err)
+		}
+		if got.Status() != domain.StatusPaid {
+			t.Errorf("Status() = %v, want %v", got.Status(), domain.StatusPaid)
+		}
+		if items := got.Items(); len(items) != 1 || items[0].Quantity() != 2 {
+			t.Errorf("Items() = %v, want original item with quantity 2", items)
+		}
+	})
+
+	t.Run("rejects stale status", func(t *testing.T) {
+		repo := memory.NewOrderRepository()
+		order := makeOrder(t, "p1", 1000, 1)
+		if err := repo.Save(context.Background(), order); err != nil {
+			t.Fatalf("Save(...) returned unexpected error: %v", err)
+		}
+		if err := repo.UpdateStatus(context.Background(), order.ID(), domain.StatusPending, domain.StatusPaid); err != nil {
+			t.Fatalf("UpdateStatus(...) returned unexpected error: %v", err)
+		}
+
+		err := repo.UpdateStatus(context.Background(), order.ID(), domain.StatusPending, domain.StatusCancelled)
+		if !errors.Is(err, domain.ErrInvalidStatusTransition) {
+			t.Errorf("UpdateStatus(...) error = %v, want %v", err, domain.ErrInvalidStatusTransition)
+		}
+	})
+
+	t.Run("missing order", func(t *testing.T) {
+		repo := memory.NewOrderRepository()
+		err := repo.UpdateStatus(context.Background(), domain.OrderID("missing"), domain.StatusPending, domain.StatusPaid)
+		if !errors.Is(err, application.ErrOrderNotFound) {
+			t.Errorf("UpdateStatus(...) error = %v, want %v", err, application.ErrOrderNotFound)
+		}
+	})
+
+	t.Run("cancelled context", func(t *testing.T) {
+		repo := memory.NewOrderRepository()
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		err := repo.UpdateStatus(ctx, domain.OrderID("missing"), domain.StatusPending, domain.StatusPaid)
+		if !errors.Is(err, context.Canceled) {
+			t.Errorf("UpdateStatus(...) error = %v, want %v", err, context.Canceled)
 		}
 	})
 }
@@ -373,6 +475,33 @@ func TestOrderRepository_List(t *testing.T) {
 			t.Errorf("List(...) error = %v, want %v", err, context.Canceled)
 		}
 	})
+}
+
+func TestOrderRepository_ListDetachesOrders(t *testing.T) {
+	repo := memory.NewOrderRepository()
+	order := makeOrder(t, "p1", 1000, 1)
+	if err := repo.Save(context.Background(), order); err != nil {
+		t.Fatalf("Save(...) returned unexpected error: %v", err)
+	}
+
+	listed, _, err := repo.List(context.Background(), application.ListOrdersFilters{}, application.Pagination{Limit: 1})
+	if err != nil {
+		t.Fatalf("List(...) returned unexpected error: %v", err)
+	}
+	if len(listed) != 1 {
+		t.Fatalf("List(...) returned %d orders, want 1", len(listed))
+	}
+	if err := listed[0].MarkAsPaid(); err != nil {
+		t.Fatalf("MarkAsPaid() returned unexpected error: %v", err)
+	}
+
+	got, err := repo.FindByID(context.Background(), order.ID())
+	if err != nil {
+		t.Fatalf("FindByID(...) returned unexpected error: %v", err)
+	}
+	if got.Status() != domain.StatusPending {
+		t.Errorf("Status() = %v after listed order mutation, want %v", got.Status(), domain.StatusPending)
+	}
 }
 
 // TestOrderRepository_ConcurrentAccess exercises Save, FindByID, and List

@@ -26,10 +26,11 @@ func (uc *MarkOrderAsShippedUseCase) Execute(ctx context.Context, id domain.Orde
 	if err != nil {
 		return err
 	}
+	expected := order.Status()
 
 	if err := order.Ship(); err != nil {
 		return err
 	}
 
-	return uc.repo.Save(ctx, order)
+	return uc.repo.UpdateStatus(ctx, id, expected, order.Status())
 }

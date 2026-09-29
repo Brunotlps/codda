@@ -151,6 +151,103 @@ func TestOrderRepository_Save(t *testing.T) {
 	})
 }
 
+func TestOrderRepository_UpdateStatus(t *testing.T) {
+	ctx := context.Background()
+	repo := postgres.NewOrderRepository(testPool)
+
+	t.Run("updates status without changing items", func(t *testing.T) {
+		truncateTables(t)
+		order := makeOrder(t, "p1", 1000, 2)
+		if err := repo.Save(ctx, order); err != nil {
+			t.Fatalf("Save: %v", err)
+		}
+
+		if err := repo.UpdateStatus(ctx, order.ID(), domain.StatusPending, domain.StatusPaid); err != nil {
+			t.Fatalf("UpdateStatus: %v", err)
+		}
+		saved, err := repo.FindByID(ctx, order.ID())
+		if err != nil {
+			t.Fatalf("FindByID: %v", err)
+		}
+		if saved.Status() != domain.StatusPaid {
+			t.Errorf("Status() = %v, want %v", saved.Status(), domain.StatusPaid)
+		}
+		if items := saved.Items(); len(items) != 1 || items[0].ProductID() != "p1" || items[0].Quantity() != 2 {
+			t.Errorf("Items() = %v, want original item with quantity 2", items)
+		}
+	})
+
+	t.Run("rejects stale status", func(t *testing.T) {
+		truncateTables(t)
+		order := makeOrder(t, "p1", 1000, 1)
+		if err := repo.Save(ctx, order); err != nil {
+			t.Fatalf("Save: %v", err)
+		}
+		if err := repo.UpdateStatus(ctx, order.ID(), domain.StatusPending, domain.StatusPaid); err != nil {
+			t.Fatalf("UpdateStatus (first): %v", err)
+		}
+
+		err := repo.UpdateStatus(ctx, order.ID(), domain.StatusPending, domain.StatusCancelled)
+		if !errors.Is(err, domain.ErrInvalidStatusTransition) {
+			t.Errorf("UpdateStatus (stale) error = %v, want %v", err, domain.ErrInvalidStatusTransition)
+		}
+	})
+
+	t.Run("missing order", func(t *testing.T) {
+		truncateTables(t)
+		err := repo.UpdateStatus(ctx, domain.OrderID("ffffffff-ffff-ffff-ffff-ffffffffffff"), domain.StatusPending, domain.StatusPaid)
+		if !errors.Is(err, application.ErrOrderNotFound) {
+			t.Errorf("UpdateStatus (missing) error = %v, want %v", err, application.ErrOrderNotFound)
+		}
+	})
+
+	t.Run("competing transitions", func(t *testing.T) {
+		truncateTables(t)
+		order := makeOrder(t, "p1", 1000, 1)
+		if err := repo.Save(ctx, order); err != nil {
+			t.Fatalf("Save: %v", err)
+		}
+
+		type result struct {
+			status domain.OrderStatus
+			err    error
+		}
+		start := make(chan struct{})
+		results := make(chan result, 2)
+		for _, status := range []domain.OrderStatus{domain.StatusPaid, domain.StatusCancelled} {
+			go func(status domain.OrderStatus) {
+				<-start
+				results <- result{status, repo.UpdateStatus(ctx, order.ID(), domain.StatusPending, status)}
+			}(status)
+		}
+		close(start)
+
+		var winner domain.OrderStatus
+		conflicts := 0
+		for range 2 {
+			result := <-results
+			switch {
+			case result.err == nil:
+				winner = result.status
+			case errors.Is(result.err, domain.ErrInvalidStatusTransition):
+				conflicts++
+			default:
+				t.Fatalf("UpdateStatus error = %v, want nil or %v", result.err, domain.ErrInvalidStatusTransition)
+			}
+		}
+		if winner == "" || conflicts != 1 {
+			t.Errorf("results = winner %v and %d conflicts, want one of each", winner, conflicts)
+		}
+		saved, err := repo.FindByID(ctx, order.ID())
+		if err != nil {
+			t.Fatalf("FindByID: %v", err)
+		}
+		if saved.Status() != winner {
+			t.Errorf("Status() = %v, want winning status %v", saved.Status(), winner)
+		}
+	})
+}
+
 func TestOrderRepository_FindByID(t *testing.T) {
 	ctx := context.Background()
 

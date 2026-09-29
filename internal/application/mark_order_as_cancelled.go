@@ -26,10 +26,11 @@ func (uc *MarkOrderAsCancelledUseCase) Execute(ctx context.Context, id domain.Or
 	if err != nil {
 		return err
 	}
+	expected := order.Status()
 
 	if err := order.Cancel(); err != nil {
 		return err
 	}
 
-	return uc.repo.Save(ctx, order)
+	return uc.repo.UpdateStatus(ctx, id, expected, order.Status())
 }
